@@ -1,0 +1,7 @@
+services:
+  build-env:
+    image: build-env
+    volumes:
+      - ./:/app
+      - /app/build
+      - ./build/Release/coverage:/app/build/Release/coverage
