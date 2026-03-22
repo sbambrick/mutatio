@@ -143,6 +143,9 @@ another Velocity with respect to a given coordinate frame.
 
 * EcefVelocityView - The difference in meters per second between two velocities
   expressed in the ECEF coordinate frame.
+* NedVelocityView - The difference in meters per second between two velocities
+  expressed as North, East, and Down components. A reference Location is
+  required to define the local NED frame orientation.
 
 ```c++
 #include "mutatio/velocity_view.h"
@@ -163,11 +166,32 @@ auto stat = VelocityViewFrom(origin_vel, point_vel, &pre_alloc_view);
 // Reconstruct a Velocity from an origin Velocity and a VelocityView.
 auto point_vel_out = VelocityFrom<EcefVelocity>(origin_vel, ecef_vel_view);
 
+// NedVelocityView requires a reference Location to define the NED frame.
+LlaLocation loc{33.0, 74.0, 1000.0};
+auto ned_vel_view = VelocityViewFrom<NedVelocityView>(origin_vel, point_vel, loc);
+
+// Construct a pre-allocated NedVelocityView.
+NedVelocityView pre_alloc_ned_view;
+stat = VelocityViewFrom(origin_vel, point_vel, loc, &pre_alloc_ned_view);
+
+// Reconstruct a Velocity from an origin Velocity and a NedVelocityView.
+auto point_vel_out2 = VelocityFrom<EcefVelocity>(origin_vel, ned_vel_view, loc);
+
+// NED-frame origin and point velocities can also be used directly.
+NedVelocity ned_origin{10.0, 20.0, 30.0};
+NedVelocity ned_point{11.0, 22.0, 33.0};
+auto ned_view2 = VelocityViewFrom<NedVelocityView>(ned_origin, ned_point, loc);
+auto ned_point_out = VelocityFrom<NedVelocity>(ned_origin, ned_view2, loc);
+
 // ... or using arbitrary Velocity and VelocityView variants.
 VelocityTypes any_origin       = EcefVelocity{10.0, 20.0, 30.0};
 VelocityViewTypes any_vel_view = EcefVelocityView{5.0, -2.0, 5.0};
 EcefVelocity specific_vel;
 stat = VelocityFrom(any_origin, any_vel_view, &specific_vel);
+
+// Variant dispatch with NedVelocityView also accepts a location.
+VelocityViewTypes ned_view_variant = NedVelocityView{1.0, 2.0, 3.0};
+stat = VelocityFrom(any_origin, ned_view_variant, loc, &specific_vel);
 ```
 
 ## Quick Start
