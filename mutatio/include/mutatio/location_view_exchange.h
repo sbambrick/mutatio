@@ -111,10 +111,8 @@ OutViewType ViewFrom(const OriginType& origin, const PointType& point) {
   OutViewType out;
   auto status = ViewFrom(origin, point, &out);
 
-  switch (status) {
-    case Status::ERROR:
-      throw std::invalid_argument("ERROR in LocationFrom.");
-  }
+  if (status == Status::ERROR)
+    throw std::invalid_argument("ERROR in LocationFrom.");
 
   return out;
 }
@@ -322,10 +320,8 @@ OutLocType LocationFrom(const OriginType& origin, const ViewType& view) {
   OutLocType out;
   auto status = LocationFrom(origin, view, &out);
 
-  switch (status) {
-    case Status::ERROR:
-      throw std::invalid_argument("ERROR in LocationFrom.");
-  }
+  if (status == Status::ERROR)
+    throw std::invalid_argument("ERROR in LocationFrom.");
 
   return out;
 }

@@ -11,7 +11,7 @@ namespace mutatio {
 //   [ -sin(lat)cos(lon)  -sin(lat)sin(lon)   cos(lat) ]
 //   [ -sin(lon)           cos(lon)            0        ]
 //   [ -cos(lat)cos(lon)  -cos(lat)sin(lon)  -sin(lat)  ]
-Status VelocityFrom(const EcefVelocity& in, const LlaLocation& loc,
+Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& in,
                     NedVelocity* out) {
   const auto deg     = GeographicLib::Constants::degree();
   const auto sin_lat = std::sin(loc.lat * deg);
@@ -29,7 +29,7 @@ Status VelocityFrom(const EcefVelocity& in, const LlaLocation& loc,
 
 // Rotates a NED velocity back into the ECEF frame using the transpose of the
 // ECEF-to-NED rotation matrix.
-Status VelocityFrom(const NedVelocity& in, const LlaLocation& loc,
+Status VelocityFrom(const LlaLocation& loc, const NedVelocity& in,
                     EcefVelocity* out) {
   const auto deg     = GeographicLib::Constants::degree();
   const auto sin_lat = std::sin(loc.lat * deg);

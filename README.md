@@ -120,20 +120,20 @@ EcefVelocity ecef_vel{100.0, -50.0, 25.0};
 
 // Convert to a NED velocity at a given location.
 LlaLocation loc{33.0, 74.0, 1000.0};
-auto ned_vel = VelocityFrom<NedVelocity>(ecef_vel, loc);
+auto ned_vel = VelocityFrom<NedVelocity>(loc, ecef_vel);
 
 // Convert to a pre-allocated Velocity.
 NedVelocity pre_alloc_vel;
-auto stat = VelocityFrom(ecef_vel, loc, &pre_alloc_vel);
+auto stat = VelocityFrom(loc, ecef_vel, &pre_alloc_vel);
 
 // Convert back to ECEF.
-auto ecef_vel_out = VelocityFrom<EcefVelocity>(ned_vel, loc);
+auto ecef_vel_out = VelocityFrom<EcefVelocity>(loc, ned_vel);
 
 // Convert arbitrary Velocity and Location variants.
 VelocityTypes any_vel = EcefVelocity{100.0, -50.0, 25.0};
 LocationTypes any_loc = LlaLocation{33.0, 74.0, 1000.0};
 NedVelocity specific_vel;
-stat = VelocityFrom(any_vel, any_loc, &specific_vel);
+stat = VelocityFrom(any_loc, any_vel, &specific_vel);
 ```
 
 ### VelocityView
@@ -144,8 +144,11 @@ another Velocity with respect to a given coordinate frame.
 * EcefVelocityView - The difference in meters per second between two velocities
   expressed in the ECEF coordinate frame.
 * NedVelocityView - The difference in meters per second between two velocities
-  expressed as North, East, and Down components. A reference Location is
-  required to define the local NED frame orientation.
+  expressed as North, East, and Down components.
+
+All `VelocityViewFrom` and `VelocityFrom` conversions require a reference
+Location. Cross-type conversions are fully supported: origin, view, and output
+can each be in different frames.
 
 ```c++
 #include "mutatio/velocity_view.h"
@@ -153,45 +156,48 @@ another Velocity with respect to a given coordinate frame.
 
 ...
 
+LlaLocation loc{33.0, 74.0, 1000.0};
 EcefVelocity origin_vel{10.0, 20.0, 30.0};
 EcefVelocity point_vel{15.0, 18.0, 35.0};
 
-// Construct a VelocityView between two velocities.
-auto ecef_vel_view = VelocityViewFrom<EcefVelocityView>(origin_vel, point_vel);
+// Construct an EcefVelocityView between two velocities.
+auto ecef_vel_view = VelocityViewFrom<EcefVelocityView>(loc, origin_vel, point_vel);
 
-// Construct a pre-allocated VelocityView.
+// Construct a pre-allocated EcefVelocityView.
 EcefVelocityView pre_alloc_view;
-auto stat = VelocityViewFrom(origin_vel, point_vel, &pre_alloc_view);
+auto stat = VelocityViewFrom(loc, origin_vel, point_vel, &pre_alloc_view);
 
 // Reconstruct a Velocity from an origin Velocity and a VelocityView.
-auto point_vel_out = VelocityFrom<EcefVelocity>(origin_vel, ecef_vel_view);
+// The output type is independent of the origin and view frame.
+auto point_ecef = VelocityFrom<EcefVelocity>(loc, origin_vel, ecef_vel_view);
+auto point_ned  = VelocityFrom<NedVelocity>(loc, origin_vel, ecef_vel_view);
 
-// NedVelocityView requires a reference Location to define the NED frame.
-LlaLocation loc{33.0, 74.0, 1000.0};
-auto ned_vel_view = VelocityViewFrom<NedVelocityView>(origin_vel, point_vel, loc);
+// Construct a NedVelocityView between two velocities.
+auto ned_vel_view = VelocityViewFrom<NedVelocityView>(loc, origin_vel, point_vel);
 
-// Construct a pre-allocated NedVelocityView.
-NedVelocityView pre_alloc_ned_view;
-stat = VelocityViewFrom(origin_vel, point_vel, loc, &pre_alloc_ned_view);
+// Reconstruct from a NedVelocityView — output frame is independent.
+auto point_ecef2 = VelocityFrom<EcefVelocity>(loc, origin_vel, ned_vel_view);
+auto point_ned2  = VelocityFrom<NedVelocity>(loc, origin_vel, ned_vel_view);
 
-// Reconstruct a Velocity from an origin Velocity and a NedVelocityView.
-auto point_vel_out2 = VelocityFrom<EcefVelocity>(origin_vel, ned_vel_view, loc);
-
-// NED-frame origin and point velocities can also be used directly.
+// Cross-type: origin, view, and output can all be in different frames.
 NedVelocity ned_origin{10.0, 20.0, 30.0};
-NedVelocity ned_point{11.0, 22.0, 33.0};
-auto ned_view2 = VelocityViewFrom<NedVelocityView>(ned_origin, ned_point, loc);
-auto ned_point_out = VelocityFrom<NedVelocity>(ned_origin, ned_view2, loc);
+auto cross_ecef_view = VelocityViewFrom<EcefVelocityView>(loc, ned_origin, point_vel);
+auto cross_ned_view  = VelocityViewFrom<NedVelocityView>(loc, ned_origin, point_vel);
+auto cross_output    = VelocityFrom<NedVelocity>(loc, ned_origin, cross_ecef_view);
+
+// Variant dispatch requires a location for all VelocityViewFrom and VelocityFrom calls.
+VelocityTypes any_origin = EcefVelocity{10.0, 20.0, 30.0};
+VelocityTypes any_point  = NedVelocity{1.0, 2.0, 3.0};
+EcefVelocityView variant_view;
+stat = VelocityViewFrom(loc, any_origin, any_point, &variant_view);
 
 // ... or using arbitrary Velocity and VelocityView variants.
-VelocityTypes any_origin       = EcefVelocity{10.0, 20.0, 30.0};
+// The output type is independent of the variant frames held at runtime.
 VelocityViewTypes any_vel_view = EcefVelocityView{5.0, -2.0, 5.0};
-EcefVelocity specific_vel;
-stat = VelocityFrom(any_origin, any_vel_view, &specific_vel);
-
-// Variant dispatch with NedVelocityView also accepts a location.
-VelocityViewTypes ned_view_variant = NedVelocityView{1.0, 2.0, 3.0};
-stat = VelocityFrom(any_origin, ned_view_variant, loc, &specific_vel);
+EcefVelocity ecef_out;
+stat = VelocityFrom(loc, any_origin, any_vel_view, &ecef_out);
+NedVelocity ned_out;
+stat = VelocityFrom(loc, any_origin, any_vel_view, &ned_out);
 ```
 
 ## Quick Start

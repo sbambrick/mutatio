@@ -14,25 +14,25 @@ TEST(VelocityExchange, VelocityFromEcefNed) {
   NedVelocity result;
   Status stat;
 
-  stat = VelocityFrom(EcefVelocity{1.0, 0.0, 0.0}, loc, &result);
+  stat = VelocityFrom(loc, EcefVelocity{1.0, 0.0, 0.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vnorth, 0.0);
   ASSERT_DOUBLE_EQ(result.veast, 0.0);
   ASSERT_DOUBLE_EQ(result.vdown, -1.0);
 
-  stat = VelocityFrom(EcefVelocity{0.0, 1.0, 0.0}, loc, &result);
+  stat = VelocityFrom(loc, EcefVelocity{0.0, 1.0, 0.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vnorth, 0.0);
   ASSERT_DOUBLE_EQ(result.veast, 1.0);
   ASSERT_DOUBLE_EQ(result.vdown, 0.0);
 
-  stat = VelocityFrom(EcefVelocity{0.0, 0.0, 1.0}, loc, &result);
+  stat = VelocityFrom(loc, EcefVelocity{0.0, 0.0, 1.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vnorth, 1.0);
   ASSERT_DOUBLE_EQ(result.veast, 0.0);
   ASSERT_DOUBLE_EQ(result.vdown, 0.0);
 
-  result = VelocityFrom<NedVelocity>(EcefVelocity{1.0, 0.0, 0.0}, loc);
+  result = VelocityFrom<NedVelocity>(loc, EcefVelocity{1.0, 0.0, 0.0});
   ASSERT_DOUBLE_EQ(result.vdown, -1.0);
 }
 
@@ -42,19 +42,19 @@ TEST(VelocityExchange, VelocityFromNedEcef) {
   Status stat;
 
   // north (+Z), east (+Y), down (-X) at (0 N, 0 E).
-  stat = VelocityFrom(NedVelocity{1.0, 0.0, 0.0}, loc, &result);
+  stat = VelocityFrom(loc, NedVelocity{1.0, 0.0, 0.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vx, 0.0);
   ASSERT_DOUBLE_EQ(result.vy, 0.0);
   ASSERT_DOUBLE_EQ(result.vz, 1.0);
 
-  stat = VelocityFrom(NedVelocity{0.0, 1.0, 0.0}, loc, &result);
+  stat = VelocityFrom(loc, NedVelocity{0.0, 1.0, 0.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vx, 0.0);
   ASSERT_DOUBLE_EQ(result.vy, 1.0);
   ASSERT_DOUBLE_EQ(result.vz, 0.0);
 
-  stat = VelocityFrom(NedVelocity{0.0, 0.0, 1.0}, loc, &result);
+  stat = VelocityFrom(loc, NedVelocity{0.0, 0.0, 1.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vx, -1.0);
   ASSERT_DOUBLE_EQ(result.vy, 0.0);
@@ -66,7 +66,7 @@ TEST(VelocityExchange, VelocityFromVariants) {
   LocationTypes loc_variant = LlaLocation{0.0, 0.0, 0.0};
 
   NedVelocity result;
-  auto stat = VelocityFrom(vel_variant, loc_variant, &result);
+  auto stat = VelocityFrom(loc_variant, vel_variant, &result);
 
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vnorth, 1.0);
@@ -78,8 +78,8 @@ TEST(VelocityExchange, VelocityFromEcefNedRoundTrip) {
   const LlaLocation loc{33.0, 74.0, 1000.0};
   const EcefVelocity original{100.0, -50.0, 25.0};
 
-  auto ned          = VelocityFrom<NedVelocity>(original, loc);
-  auto reconstructed = VelocityFrom<EcefVelocity>(ned, loc);
+  auto ned           = VelocityFrom<NedVelocity>(loc, original);
+  auto reconstructed = VelocityFrom<EcefVelocity>(loc, ned);
 
   ASSERT_DOUBLE_EQ(reconstructed.vx, original.vx);
   ASSERT_DOUBLE_EQ(reconstructed.vy, original.vy);

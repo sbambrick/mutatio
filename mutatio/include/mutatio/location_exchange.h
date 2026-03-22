@@ -30,10 +30,8 @@ OutLocType LocationFrom(const InLocType& in) {
   OutLocType out;
   auto status = LocationFrom(in, &out);
 
-  switch (status) {
-    case Status::ERROR:
-      throw std::invalid_argument("ERROR in LocationFrom.");
-  }
+  if (status == Status::ERROR)
+    throw std::invalid_argument("ERROR in LocationFrom.");
 
   return out;
 }
