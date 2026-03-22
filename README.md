@@ -126,6 +126,40 @@ VelocityTypes any_vel = EcefVelocity{100.0, -50.0, 25.0};
 auto specific_vel     = VelocityFrom<EcefVelocity>(any_vel);
 ```
 
+### VelocityView
+
+VelocityViews represent the relative velocity between an origin Velocity and
+another Velocity with respect to a given coordinate frame.
+
+* EcefVelocityView - The difference in meters per second between two velocities
+  expressed in the ECEF coordinate frame.
+
+```c++
+#include "mutatio/velocity_view.h"
+#include "mutatio/velocity_view_exchange.h"
+
+...
+
+EcefVelocity origin_vel{10.0, 20.0, 30.0};
+EcefVelocity point_vel{15.0, 18.0, 35.0};
+
+// Construct a VelocityView between two velocities.
+auto ecef_vel_view = VelocityViewFrom<EcefVelocityView>(origin_vel, point_vel);
+
+// Construct a pre-allocated VelocityView.
+EcefVelocityView pre_alloc_view;
+auto stat = VelocityViewFrom(origin_vel, point_vel, &pre_alloc_view);
+
+// Reconstruct a Velocity from an origin Velocity and a VelocityView.
+auto point_vel_out = VelocityFrom<EcefVelocity>(origin_vel, ecef_vel_view);
+
+// ... or using arbitrary Velocity and VelocityView variants.
+VelocityTypes any_origin       = EcefVelocity{10.0, 20.0, 30.0};
+VelocityViewTypes any_vel_view = EcefVelocityView{5.0, -2.0, 5.0};
+EcefVelocity specific_vel;
+stat = VelocityFrom(any_origin, any_vel_view, &specific_vel);
+```
+
 ## Quick Start
 
 ```bash

@@ -2,7 +2,7 @@
 
 namespace mutatio {
 
-Status VelocityFrom(const EcefVelocity &in, EcefVelocity *out) {
+Status VelocityFrom(const EcefVelocity& in, EcefVelocity* out) {
   *out = in;
   return Status::SUCCESS;
 }

@@ -2,8 +2,8 @@
 
 #include "gtest/gtest.h"
 
-#include "mutatio/velocity.h"
 #include "mutatio/status.h"
+#include "mutatio/velocity.h"
 
 namespace mutatio {
 
