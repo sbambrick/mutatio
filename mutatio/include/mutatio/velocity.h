@@ -18,6 +18,12 @@ struct NedVelocity {
   MetersPerSecond vdown;
 };
 
-using VelocityTypes = std::variant<EcefVelocity, NedVelocity>;
+struct AerVelocity {
+  DegreesPerSecond vazimuth;
+  DegreesPerSecond velevation;
+  MetersPerSecond  vrange;
+};
+
+using VelocityTypes = std::variant<EcefVelocity, NedVelocity, AerVelocity>;
 
 }  // namespace mutatio

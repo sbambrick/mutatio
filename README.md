@@ -108,6 +108,13 @@ WGS84 ellipsoid.
   coordinate frame.
 * NedVelocity - A velocity in meters per second expressed as North, East, and
   Down components relative to the WGS84 ellipsoid at a given Location.
+* AerVelocity - A velocity expressed as the time derivatives of Azimuth
+  (deg/s), Elevation (deg/s), and Range (m/s) as observed from an origin
+  Location. Because the Jacobian depends on the instantaneous geometry,
+  AerVelocity conversions require two locations: `origin_loc` (the observer)
+  and `point_loc` (the target's current position). Single-location calls
+  return `Status::ERROR`. The NedVelocity output from an AerVelocity
+  conversion is expressed in the NED frame at `origin_loc`.
 
 ```c++
 #include "mutatio/velocity.h"
@@ -149,6 +156,38 @@ auto ned_at_point = VelocityFrom<NedVelocity>(origin_loc, point_loc, ned_at_orig
 NedVelocity pre_alloc;
 stat = VelocityFrom(origin_loc, point_loc, ned_at_origin, &pre_alloc);
 stat = VelocityFrom(any_loc, any_loc, any_vel, &specific_vel);
+```
+
+AerVelocity conversions always use the two-location form. The NedVelocity
+output is in the NED frame at `origin_loc`.
+
+```c++
+#include "mutatio/velocity.h"
+#include "mutatio/velocity_exchange.h"
+
+...
+
+LlaLocation observer{33.0, 74.0, 0.0}; // observer
+LlaLocation target{33.5, 74.3, 500.0}; // target's current position
+
+// Convert a measured AerVelocity to NedVelocity (in the observers's NED frame).
+AerVelocity aer_vel{0.5, -0.2, 120.0};  // deg/s, deg/s, m/s
+auto ned_vel = VelocityFrom<NedVelocity>(observer, target, aer_vel);
+
+// Convert NedVelocity (at observer) back to AerVelocity.
+auto reconstructed = VelocityFrom<AerVelocity>(observer, target, ned_vel);
+
+// Convert to ECEF velocity.
+auto ecef_vel = VelocityFrom<EcefVelocity>(observer, target, aer_vel);
+
+// Pre-allocated form.
+AerVelocity aer_out;
+stat = VelocityFrom(observer, target, ned_vel, &aer_out);
+
+// AerVelocity can be held in VelocityTypes; two-location variant dispatch works.
+VelocityTypes vel_variant = aer_vel;
+NedVelocity ned_out;
+stat = VelocityFrom(observer, target, vel_variant, &ned_out);
 ```
 
 ### VelocityView
