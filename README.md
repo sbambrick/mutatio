@@ -98,6 +98,34 @@ LocationTypes any_loc = EcefLocation{200.0, 200.0, 200.0};
 specific_loc          = LocationFrom<LlaLocation>(any_loc, any_view);
 ```
 
+### Velocity
+
+Velocities mirror Locations and are absolute.
+
+* EcefVelocity - A velocity expressed in the ECEF coordinate frame, where VX,
+  VY, and VZ are the components in meters per second along each ECEF axis.
+
+```c++
+#include "mutatio/velocity.h"
+#include "mutatio/velocity_exchange.h"
+
+...
+
+// Define a velocity in the ECEF frame.
+EcefVelocity ecef_vel{100.0, -50.0, 25.0};
+
+// Convert to another Velocity type (copy).
+auto copy = VelocityFrom<EcefVelocity>(ecef_vel);
+
+// Convert to a pre-allocated Velocity.
+EcefVelocity pre_alloc_vel;
+auto stat = VelocityFrom(ecef_vel, &pre_alloc_vel);
+
+// Convert an arbitrary Velocity into a specific Velocity type.
+VelocityTypes any_vel = EcefVelocity{100.0, -50.0, 25.0};
+auto specific_vel     = VelocityFrom<EcefVelocity>(any_vel);
+```
+
 ## Quick Start
 
 ```bash
