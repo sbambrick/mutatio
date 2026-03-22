@@ -14,8 +14,8 @@
 namespace mutatio {
 
 template <class OriginType, class PointType>
-Status ViewFrom(const OriginType &origin, const PointType &point,
-                NedLocationView *out) {
+Status ViewFrom(const OriginType& origin, const PointType& point,
+                NedLocationView* out) {
   LlaLocation origin_lla, point_lla;
   Status stat;
 
@@ -48,8 +48,8 @@ Status ViewFrom(const OriginType &origin, const PointType &point,
 }
 
 template <class OriginType, class PointType>
-Status ViewFrom(const OriginType &origin, const PointType &point,
-                AerLocationView *out) {
+Status ViewFrom(const OriginType& origin, const PointType& point,
+                AerLocationView* out) {
   LlaLocation origin_lla, point_lla;
   Status stat;
 
@@ -82,8 +82,8 @@ Status ViewFrom(const OriginType &origin, const PointType &point,
 }
 
 template <class OriginType, class PointType>
-Status ViewFrom(const OriginType &origin, const PointType &point,
-                EcefLocationView *out) {
+Status ViewFrom(const OriginType& origin, const PointType& point,
+                EcefLocationView* out) {
   EcefLocation origin_ecef, point_ecef;
   Status stat;
 
@@ -107,7 +107,7 @@ Status ViewFrom(const OriginType &origin, const PointType &point,
 }
 
 template <class OutViewType, class OriginType, class PointType>
-OutViewType ViewFrom(const OriginType &origin, const PointType &point) {
+OutViewType ViewFrom(const OriginType& origin, const PointType& point) {
   OutViewType out;
   auto status = ViewFrom(origin, point, &out);
 
@@ -120,15 +120,15 @@ OutViewType ViewFrom(const OriginType &origin, const PointType &point) {
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const NedLocationView &in,
-                NedLocationView *out) {
+Status ViewFrom(const OriginType& origin, const NedLocationView& in,
+                NedLocationView* out) {
   *out = in;
   return Status::SUCCESS;
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const NedLocationView &in,
-                AerLocationView *out) {
+Status ViewFrom(const OriginType& origin, const NedLocationView& in,
+                AerLocationView* out) {
   const auto deg_to_rad = GeographicLib::Constants::degree();
 
   const auto s     = std::sqrt((in.north * in.north) + (in.east * in.east));
@@ -143,8 +143,8 @@ Status ViewFrom(const OriginType &origin, const NedLocationView &in,
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const NedLocationView &in,
-                EcefLocationView *out) {
+Status ViewFrom(const OriginType& origin, const NedLocationView& in,
+                EcefLocationView* out) {
   LlaLocation origin_lla;
   auto stat = LocationFrom(origin, &origin_lla);
   if (stat != Status::SUCCESS) {
@@ -167,8 +167,8 @@ Status ViewFrom(const OriginType &origin, const NedLocationView &in,
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const AerLocationView &in,
-                NedLocationView *out) {
+Status ViewFrom(const OriginType& origin, const AerLocationView& in,
+                NedLocationView* out) {
   const auto deg_to_rad = GeographicLib::Constants::degree();
 
   const auto s     = in.range * std::cos(in.elevation * deg_to_rad);
@@ -182,15 +182,15 @@ Status ViewFrom(const OriginType &origin, const AerLocationView &in,
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const AerLocationView &in,
-                AerLocationView *out) {
+Status ViewFrom(const OriginType& origin, const AerLocationView& in,
+                AerLocationView* out) {
   *out = in;
   return Status::SUCCESS;
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const AerLocationView &in,
-                EcefLocationView *out) {
+Status ViewFrom(const OriginType& origin, const AerLocationView& in,
+                EcefLocationView* out) {
   LlaLocation origin_lla;
   auto stat = LocationFrom(origin, &origin_lla);
   if (stat != Status::SUCCESS) {
@@ -215,8 +215,8 @@ Status ViewFrom(const OriginType &origin, const AerLocationView &in,
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const EcefLocationView &in,
-                NedLocationView *out) {
+Status ViewFrom(const OriginType& origin, const EcefLocationView& in,
+                NedLocationView* out) {
   EcefLocation origin_ecef;
   auto stat = LocationFrom(origin, &origin_ecef);
   if (stat != Status::SUCCESS) {
@@ -230,8 +230,8 @@ Status ViewFrom(const OriginType &origin, const EcefLocationView &in,
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const EcefLocationView &in,
-                AerLocationView *out) {
+Status ViewFrom(const OriginType& origin, const EcefLocationView& in,
+                AerLocationView* out) {
   EcefLocation origin_ecef;
   auto stat = LocationFrom(origin, &origin_ecef);
   if (stat != Status::SUCCESS) {
@@ -245,15 +245,15 @@ Status ViewFrom(const OriginType &origin, const EcefLocationView &in,
 }
 
 template <class OriginType>
-Status ViewFrom(const OriginType &origin, const EcefLocationView &in,
-                EcefLocationView *out) {
+Status ViewFrom(const OriginType& origin, const EcefLocationView& in,
+                EcefLocationView* out) {
   *out = in;
   return Status::SUCCESS;
 }
 
 template <class OriginType, class PointType>
-Status LocationFrom(const OriginType &origin, const NedLocationView &view,
-                    PointType *out) {
+Status LocationFrom(const OriginType& origin, const NedLocationView& view,
+                    PointType* out) {
   LlaLocation origin_lla;
   auto stat = LocationFrom(origin, &origin_lla);
   if (stat != Status::SUCCESS) {
@@ -277,8 +277,8 @@ Status LocationFrom(const OriginType &origin, const NedLocationView &view,
 }
 
 template <class OriginType, class PointType>
-Status LocationFrom(const OriginType &origin, const AerLocationView &view,
-                    PointType *out) {
+Status LocationFrom(const OriginType& origin, const AerLocationView& view,
+                    PointType* out) {
   LlaLocation origin_lla;
   auto stat = LocationFrom(origin, &origin_lla);
   if (stat != Status::SUCCESS) {
@@ -303,8 +303,8 @@ Status LocationFrom(const OriginType &origin, const AerLocationView &view,
 }
 
 template <class OriginType, class PointType>
-Status LocationFrom(const OriginType &origin, const EcefLocationView &view,
-                    PointType *out) {
+Status LocationFrom(const OriginType& origin, const EcefLocationView& view,
+                    PointType* out) {
   EcefLocation origin_ecef;
   auto stat = LocationFrom(origin, &origin_ecef);
   if (stat != Status::SUCCESS) {
@@ -318,7 +318,7 @@ Status LocationFrom(const OriginType &origin, const EcefLocationView &view,
 }
 
 template <class OutLocType, class OriginType, class ViewType>
-OutLocType LocationFrom(const OriginType &origin, const ViewType &view) {
+OutLocType LocationFrom(const OriginType& origin, const ViewType& view) {
   OutLocType out;
   auto status = LocationFrom(origin, view, &out);
 
@@ -333,12 +333,12 @@ OutLocType LocationFrom(const OriginType &origin, const ViewType &view) {
 template <class OriginType, class PointType,
           class = std::enable_if_t<
               is_one_of_variants_types<LocationTypes, PointType>>>
-Status LocationFrom(const OriginType &origin,
-                    const LocationViewTypes &view_variant, PointType *out) {
+Status LocationFrom(const OriginType& origin,
+                    const LocationViewTypes& view_variant, PointType* out) {
   Status status = Status::SUCCESS;
   std::visit(
       overloaded{
-          [&status, &origin, out](const auto &view) {
+          [&status, &origin, out](const auto& view) {
             status = LocationFrom(origin, view, out);
           },
       },
@@ -348,12 +348,12 @@ Status LocationFrom(const OriginType &origin,
 
 template <class PointType, class = std::enable_if_t<is_one_of_variants_types<
                                LocationTypes, PointType>>>
-Status LocationFrom(const LocationTypes &origin_variant,
-                    const LocationViewTypes &view_variant, PointType *out) {
+Status LocationFrom(const LocationTypes& origin_variant,
+                    const LocationViewTypes& view_variant, PointType* out) {
   Status status = Status::SUCCESS;
   std::visit(
       overloaded{
-          [&status, &view_variant, out](const auto &origin) {
+          [&status, &view_variant, out](const auto& origin) {
             status = LocationFrom(origin, view_variant, out);
           },
       },
