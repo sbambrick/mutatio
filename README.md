@@ -100,10 +100,14 @@ specific_loc          = LocationFrom<LlaLocation>(any_loc, any_view);
 
 ### Velocity
 
-Velocities mirror Locations and are absolute.
+Velocities mirror Locations and are absolute. Converting between coordinate
+frames requires a reference Location to define the local orientation of the
+WGS84 ellipsoid.
 
-* EcefVelocity - A velocity expressed in the ECEF coordinate frame, where VX,
-  VY, and VZ are the components in meters per second along each ECEF axis.
+* EcefVelocity - A velocity in meters per second expressed in the ECEF
+  coordinate frame.
+* NedVelocity - A velocity in meters per second expressed as North, East, and
+  Down components relative to the WGS84 ellipsoid at a given Location.
 
 ```c++
 #include "mutatio/velocity.h"
@@ -114,16 +118,22 @@ Velocities mirror Locations and are absolute.
 // Define a velocity in the ECEF frame.
 EcefVelocity ecef_vel{100.0, -50.0, 25.0};
 
-// Convert to another Velocity type (copy).
-auto copy = VelocityFrom<EcefVelocity>(ecef_vel);
+// Convert to a NED velocity at a given location.
+LlaLocation loc{33.0, 74.0, 1000.0};
+auto ned_vel = VelocityFrom<NedVelocity>(ecef_vel, loc);
 
 // Convert to a pre-allocated Velocity.
-EcefVelocity pre_alloc_vel;
-auto stat = VelocityFrom(ecef_vel, &pre_alloc_vel);
+NedVelocity pre_alloc_vel;
+auto stat = VelocityFrom(ecef_vel, loc, &pre_alloc_vel);
 
-// Convert an arbitrary Velocity into a specific Velocity type.
+// Convert back to ECEF.
+auto ecef_vel_out = VelocityFrom<EcefVelocity>(ned_vel, loc);
+
+// Convert arbitrary Velocity and Location variants.
 VelocityTypes any_vel = EcefVelocity{100.0, -50.0, 25.0};
-auto specific_vel     = VelocityFrom<EcefVelocity>(any_vel);
+LocationTypes any_loc = LlaLocation{33.0, 74.0, 1000.0};
+NedVelocity specific_vel;
+stat = VelocityFrom(any_vel, any_loc, &specific_vel);
 ```
 
 ### VelocityView

@@ -12,6 +12,12 @@ struct EcefVelocity {
   MetersPerSecond vz;
 };
 
-using VelocityTypes = std::variant<EcefVelocity>;
+struct NedVelocity {
+  MetersPerSecond vnorth;
+  MetersPerSecond veast;
+  MetersPerSecond vdown;
+};
+
+using VelocityTypes = std::variant<EcefVelocity, NedVelocity>;
 
 }  // namespace mutatio
