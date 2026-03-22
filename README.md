@@ -134,6 +134,21 @@ VelocityTypes any_vel = EcefVelocity{100.0, -50.0, 25.0};
 LocationTypes any_loc = LlaLocation{33.0, 74.0, 1000.0};
 NedVelocity specific_vel;
 stat = VelocityFrom(any_loc, any_vel, &specific_vel);
+
+// Two-location conversion — origin_loc defines the NED frame of the input
+// velocity and point_loc defines the NED frame of the output. All arithmetic
+// is done in ECEF to avoid composing rotation matrices.
+LlaLocation origin_loc{0.0, 0.0, 0.0};
+LlaLocation point_loc{0.0, 90.0, 0.0};
+NedVelocity ned_at_origin{0.0, 1.0, 0.0};  // east at origin_loc
+
+// Express the same velocity in the NED frame at point_loc.
+auto ned_at_point = VelocityFrom<NedVelocity>(origin_loc, point_loc, ned_at_origin);
+
+// Pre-allocated and variant forms are also supported.
+NedVelocity pre_alloc;
+stat = VelocityFrom(origin_loc, point_loc, ned_at_origin, &pre_alloc);
+stat = VelocityFrom(any_loc, any_loc, any_vel, &specific_vel);
 ```
 
 ### VelocityView
