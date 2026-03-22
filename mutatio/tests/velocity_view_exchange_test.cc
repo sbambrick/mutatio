@@ -356,4 +356,61 @@ TEST(VelocityViewExchange, VelocityFromNedNedViewEcef) {
   ASSERT_DOUBLE_EQ(point.vz, 2.0);
 }
 
+// Two-location VelocityFrom tests.
+// When origin_loc == point_loc, results must match the single-location overload.
+
+TEST(VelocityViewExchange, TwoLocSameLocMatchesSingleLoc) {
+  const LlaLocation loc{33.0, 74.0, 1000.0};
+  const EcefVelocity origin{10.0, 20.0, 30.0};
+  const NedVelocityView view{1.0, 2.0, 3.0};
+
+  EcefVelocity single_loc_out, two_loc_out;
+  ASSERT_EQ(VelocityFrom(loc, origin, view, &single_loc_out), Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(loc, loc, origin, view, &two_loc_out), Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(two_loc_out.vx, single_loc_out.vx);
+  ASSERT_DOUBLE_EQ(two_loc_out.vy, single_loc_out.vy);
+  ASSERT_DOUBLE_EQ(two_loc_out.vz, single_loc_out.vz);
+
+  NedVelocity single_ned_out, two_ned_out;
+  ASSERT_EQ(VelocityFrom(loc, origin, view, &single_ned_out), Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(loc, loc, origin, view, &two_ned_out), Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(two_ned_out.vnorth, single_ned_out.vnorth);
+  ASSERT_DOUBLE_EQ(two_ned_out.veast, single_ned_out.veast);
+  ASSERT_DOUBLE_EQ(two_ned_out.vdown, single_ned_out.vdown);
+}
+
+// At (0,0): east=+Y ECEF. A NED view of (0,1,0) east at origin_loc=(0,0) is
+// (0,1,0) ECEF. At (0,90): +Y ECEF is the outward radial (up), so the same
+// ECEF velocity expressed as NED there is (0,0,-1) = 1 m/s up.
+TEST(VelocityViewExchange, TwoLocNedViewDifferentOutputLoc) {
+  const LlaLocation origin_loc{0.0, 0.0, 0.0};
+  const LlaLocation point_loc{0.0, 90.0, 0.0};
+
+  const EcefVelocity origin{0.0, 0.0, 0.0};
+  const NedVelocityView view{0.0, 1.0, 0.0};  // 1 m/s east at origin_loc
+
+  // ECEF point = (0,0,0) + NED(0,1,0)@(0,0) = (0,1,0) ECEF.
+  // At (0,90): +Y ECEF is outward radial = up, so NED = (0,0,-1).
+  NedVelocity out;
+  ASSERT_EQ(VelocityFrom(origin_loc, point_loc, origin, view, &out),
+            Status::SUCCESS);
+  ASSERT_NEAR(out.vnorth, 0.0, 1e-9);
+  ASSERT_NEAR(out.veast, 0.0, 1e-9);
+  ASSERT_NEAR(out.vdown, -1.0, 1e-9);
+}
+
+TEST(VelocityViewExchange, TwoLocVariantDispatch) {
+  const LlaLocation origin_loc{0.0, 0.0, 0.0};
+  const LlaLocation point_loc{0.0, 90.0, 0.0};
+  VelocityTypes origin   = EcefVelocity{0.0, 0.0, 0.0};
+  VelocityViewTypes view = NedVelocityView{0.0, 1.0, 0.0};
+
+  NedVelocity out;
+  ASSERT_EQ(VelocityFrom(origin_loc, point_loc, origin, view, &out),
+            Status::SUCCESS);
+  ASSERT_NEAR(out.vnorth, 0.0, 1e-9);
+  ASSERT_NEAR(out.veast, 0.0, 1e-9);
+  ASSERT_NEAR(out.vdown, -1.0, 1e-9);
+}
+
 }  // namespace mutatio

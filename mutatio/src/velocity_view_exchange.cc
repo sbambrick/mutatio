@@ -148,4 +148,98 @@ Status VelocityFrom(const LlaLocation&, const NedVelocity& origin,
   return Status::SUCCESS;
 }
 
+// Two-location VelocityFrom — all arithmetic is performed in ECEF.
+
+// No rotation needed; both locations are unused.
+Status VelocityFrom(const LlaLocation&, const LlaLocation&,
+                    const EcefVelocity& origin, const EcefVelocityView& view,
+                    EcefVelocity* out) {
+  *out = EcefVelocity{origin.vx + view.vx, origin.vy + view.vy,
+                      origin.vz + view.vz};
+  return Status::SUCCESS;
+}
+
+// Add in ECEF, then rotate to NED at point_loc.
+Status VelocityFrom(const LlaLocation&, const LlaLocation& point_loc,
+                    const EcefVelocity& origin, const EcefVelocityView& view,
+                    NedVelocity* out) {
+  const EcefVelocity ecef_point{origin.vx + view.vx, origin.vy + view.vy,
+                                origin.vz + view.vz};
+  return VelocityFrom(point_loc, ecef_point, out);
+}
+
+// Rotate NED view to ECEF at origin_loc, then add.
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation&,
+                    const EcefVelocity& origin, const NedVelocityView& view,
+                    EcefVelocity* out) {
+  EcefVelocity ecef_diff;
+  auto stat = VelocityFrom(origin_loc,
+                           NedVelocity{view.vnorth, view.veast, view.vdown},
+                           &ecef_diff);
+  if (stat != Status::SUCCESS) return stat;
+  *out = EcefVelocity{origin.vx + ecef_diff.vx, origin.vy + ecef_diff.vy,
+                      origin.vz + ecef_diff.vz};
+  return Status::SUCCESS;
+}
+
+// Rotate NED view to ECEF at origin_loc, add, then rotate to NED at point_loc.
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                    const EcefVelocity& origin, const NedVelocityView& view,
+                    NedVelocity* out) {
+  EcefVelocity ecef_point;
+  auto stat = VelocityFrom(origin_loc, point_loc, origin, view, &ecef_point);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityFrom(point_loc, ecef_point, out);
+}
+
+// Rotate NED origin to ECEF at origin_loc, then add.
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation&,
+                    const NedVelocity& origin, const EcefVelocityView& view,
+                    EcefVelocity* out) {
+  EcefVelocity ecef_origin;
+  auto stat = VelocityFrom(origin_loc, origin, &ecef_origin);
+  if (stat != Status::SUCCESS) return stat;
+  *out = EcefVelocity{ecef_origin.vx + view.vx, ecef_origin.vy + view.vy,
+                      ecef_origin.vz + view.vz};
+  return Status::SUCCESS;
+}
+
+// Rotate NED origin to ECEF at origin_loc, add, then rotate to NED at point_loc.
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                    const NedVelocity& origin, const EcefVelocityView& view,
+                    NedVelocity* out) {
+  EcefVelocity ecef_point;
+  auto stat = VelocityFrom(origin_loc, point_loc, origin, view, &ecef_point);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityFrom(point_loc, ecef_point, out);
+}
+
+// Rotate NED origin and NED view to ECEF at origin_loc, then add.
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation&,
+                    const NedVelocity& origin, const NedVelocityView& view,
+                    EcefVelocity* out) {
+  EcefVelocity ecef_origin, ecef_diff;
+  auto stat = VelocityFrom(origin_loc, origin, &ecef_origin);
+  if (stat != Status::SUCCESS) return stat;
+  stat = VelocityFrom(origin_loc,
+                      NedVelocity{view.vnorth, view.veast, view.vdown},
+                      &ecef_diff);
+  if (stat != Status::SUCCESS) return stat;
+  *out = EcefVelocity{ecef_origin.vx + ecef_diff.vx,
+                      ecef_origin.vy + ecef_diff.vy,
+                      ecef_origin.vz + ecef_diff.vz};
+  return Status::SUCCESS;
+}
+
+// Rotate NED origin and view to ECEF at origin_loc, add, then rotate to NED at
+// point_loc.
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                    const NedVelocity& origin, const NedVelocityView& view,
+                    NedVelocity* out) {
+  EcefVelocity ecef_point;
+  auto stat = VelocityFrom(origin_loc, point_loc, origin, view, &ecef_point);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityFrom(point_loc, ecef_point, out);
+}
+
 }  // namespace mutatio
