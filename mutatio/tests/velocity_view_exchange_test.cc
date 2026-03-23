@@ -296,7 +296,8 @@ TEST(VelocityViewExchange, CrossTypeVariantsRoundTrip) {
   ASSERT_DOUBLE_EQ(variant_view.vz, ecef_view.vz);
 }
 
-// At (0,0): +Z ECEF = north. origin{0,0,0} + EcefView{0,0,1} = {0,0,1} ECEF = {1,0,0} NED.
+// At (0,0): +Z ECEF = north. origin{0,0,0} + EcefView{0,0,1} = {0,0,1} ECEF =
+// {1,0,0} NED.
 TEST(VelocityViewExchange, VelocityFromEcefEcefViewNed) {
   const LlaLocation loc{0.0, 0.0, 0.0};
   NedVelocity point;
@@ -332,7 +333,8 @@ TEST(VelocityViewExchange, VelocityFromNedEcefViewEcef) {
   ASSERT_DOUBLE_EQ(point.vz, 2.0);
 }
 
-// NED origin {1,0,0} = {0,0,1} ECEF + EcefView{0,0,1} = {0,0,2} ECEF = {2,0,0} NED.
+// NED origin {1,0,0} = {0,0,1} ECEF + EcefView{0,0,1} = {0,0,2} ECEF = {2,0,0}
+// NED.
 TEST(VelocityViewExchange, VelocityFromNedEcefViewNed) {
   const LlaLocation loc{0.0, 0.0, 0.0};
   NedVelocity point;
@@ -357,7 +359,8 @@ TEST(VelocityViewExchange, VelocityFromNedNedViewEcef) {
 }
 
 // Two-location VelocityFrom tests.
-// When origin_loc == point_loc, results must match the single-location overload.
+// When origin_loc == point_loc, results must match the single-location
+// overload.
 
 TEST(VelocityViewExchange, TwoLocSameLocMatchesSingleLoc) {
   const LlaLocation loc{33.0, 74.0, 1000.0};
@@ -366,14 +369,16 @@ TEST(VelocityViewExchange, TwoLocSameLocMatchesSingleLoc) {
 
   EcefVelocity single_loc_out, two_loc_out;
   ASSERT_EQ(VelocityFrom(loc, origin, view, &single_loc_out), Status::SUCCESS);
-  ASSERT_EQ(VelocityFrom(loc, loc, origin, view, &two_loc_out), Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(loc, loc, origin, view, &two_loc_out),
+            Status::SUCCESS);
   ASSERT_DOUBLE_EQ(two_loc_out.vx, single_loc_out.vx);
   ASSERT_DOUBLE_EQ(two_loc_out.vy, single_loc_out.vy);
   ASSERT_DOUBLE_EQ(two_loc_out.vz, single_loc_out.vz);
 
   NedVelocity single_ned_out, two_ned_out;
   ASSERT_EQ(VelocityFrom(loc, origin, view, &single_ned_out), Status::SUCCESS);
-  ASSERT_EQ(VelocityFrom(loc, loc, origin, view, &two_ned_out), Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(loc, loc, origin, view, &two_ned_out),
+            Status::SUCCESS);
   ASSERT_DOUBLE_EQ(two_ned_out.vnorth, single_ned_out.vnorth);
   ASSERT_DOUBLE_EQ(two_ned_out.veast, single_ned_out.veast);
   ASSERT_DOUBLE_EQ(two_ned_out.vdown, single_ned_out.vdown);
@@ -411,6 +416,139 @@ TEST(VelocityViewExchange, TwoLocVariantDispatch) {
   ASSERT_NEAR(out.vnorth, 0.0, 1e-9);
   ASSERT_NEAR(out.veast, 0.0, 1e-9);
   ASSERT_NEAR(out.vdown, -1.0, 1e-9);
+}
+
+// AerVelocityView tests.
+// Use observer{33.0, 74.0, 0.0} as observer and target{33.5, 74.3, 500.0} as
+// target.
+
+static const LlaLocation kObserver{33.0, 74.0, 0.0};
+static const LlaLocation kTarget{33.5, 74.3, 500.0};
+
+TEST(VelocityViewExchange, AerVelocityViewFromAerAer) {
+  // AerVelocity origin and point: view = point - origin.
+  const AerVelocity origin{1.0, 0.5, 100.0};
+  const AerVelocity point{3.0, -0.5, 120.0};
+
+  AerVelocityView view;
+  auto stat = VelocityViewFrom(kObserver, kTarget, origin, point, &view);
+
+  ASSERT_EQ(stat, Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(view.vazimuth, 2.0);
+  ASSERT_DOUBLE_EQ(view.velevation, -1.0);
+  ASSERT_DOUBLE_EQ(view.vrange, 20.0);
+
+  view = VelocityViewFrom<AerVelocityView>(kObserver, kTarget, origin, point);
+  ASSERT_DOUBLE_EQ(view.vazimuth, 2.0);
+  ASSERT_DOUBLE_EQ(view.velevation, -1.0);
+  ASSERT_DOUBLE_EQ(view.vrange, 20.0);
+}
+
+TEST(VelocityViewExchange, AerVelocityViewFromEcefEcef) {
+  // Round-trip: VelocityViewFrom then VelocityFrom must reconstruct point.
+  const EcefVelocity origin{100.0, -50.0, 25.0};
+  const EcefVelocity point{110.0, -48.0, 30.0};
+
+  AerVelocityView view;
+  auto stat = VelocityViewFrom(kObserver, kTarget, origin, point, &view);
+  ASSERT_EQ(stat, Status::SUCCESS);
+
+  EcefVelocity reconstructed;
+  stat = VelocityFrom(kObserver, kTarget, origin, view, &reconstructed);
+  ASSERT_EQ(stat, Status::SUCCESS);
+  ASSERT_NEAR(reconstructed.vx, point.vx, 1e-9);
+  ASSERT_NEAR(reconstructed.vy, point.vy, 1e-9);
+  ASSERT_NEAR(reconstructed.vz, point.vz, 1e-9);
+}
+
+TEST(VelocityViewExchange, AerVelocityViewRoundTrip) {
+  // Full round-trip with NED origin and NED output.
+  const NedVelocity origin{10.0, -5.0, 2.0};
+  const NedVelocity point{12.0, -3.0, 1.0};
+
+  AerVelocityView view;
+  auto stat = VelocityViewFrom(kObserver, kTarget, origin, point, &view);
+  ASSERT_EQ(stat, Status::SUCCESS);
+
+  NedVelocity reconstructed;
+  stat = VelocityFrom(kObserver, kTarget, origin, view, &reconstructed);
+  ASSERT_EQ(stat, Status::SUCCESS);
+  ASSERT_NEAR(reconstructed.vnorth, point.vnorth, 1e-9);
+  ASSERT_NEAR(reconstructed.veast, point.veast, 1e-9);
+  ASSERT_NEAR(reconstructed.vdown, point.vdown, 1e-9);
+}
+
+TEST(VelocityViewExchange, AerVelocityViewSingleLocReturnsError) {
+  // Single-location calls always return ERROR.
+  const LlaLocation loc{33.0, 74.0, 0.0};
+  const AerVelocity aer{1.0, 0.0, 10.0};
+  const EcefVelocity ecef{1.0, 0.0, 0.0};
+
+  AerVelocityView view_out;
+  ASSERT_EQ(VelocityViewFrom(loc, aer, aer, &view_out), Status::ERROR);
+  ASSERT_EQ(VelocityViewFrom(loc, ecef, ecef, &view_out), Status::ERROR);
+
+  const AerVelocityView view{1.0, 0.0, 5.0};
+  EcefVelocity ecef_out;
+  ASSERT_EQ(VelocityFrom(loc, ecef, view, &ecef_out), Status::ERROR);
+  AerVelocity aer_out;
+  ASSERT_EQ(VelocityFrom(loc, aer, view, &aer_out), Status::ERROR);
+}
+
+TEST(VelocityViewExchange, AerVelocityViewVariantDispatch) {
+  // Two-location VelocityFrom variant dispatch with AerVelocityView.
+  const AerVelocity origin{1.0, 0.5, 100.0};
+  const AerVelocity point{3.0, -0.5, 120.0};
+
+  AerVelocityView view;
+  VelocityViewFrom(kObserver, kTarget, origin, point, &view);
+
+  VelocityTypes v_origin   = origin;
+  VelocityViewTypes v_view = view;
+  AerVelocity reconstructed;
+  auto stat =
+      VelocityFrom(kObserver, kTarget, v_origin, v_view, &reconstructed);
+  ASSERT_EQ(stat, Status::SUCCESS);
+  ASSERT_NEAR(reconstructed.vazimuth, point.vazimuth, 1e-9);
+  ASSERT_NEAR(reconstructed.velevation, point.velevation, 1e-9);
+  ASSERT_NEAR(reconstructed.vrange, point.vrange, 1e-9);
+}
+
+TEST(VelocityViewExchange, AerVelocityViewFarApartNedFrames) {
+  // origin_loc and point_loc are 90° longitude apart (~10,000 km).
+  // At (0,0): east = (0,1,0) ECEF. At (0,90): east = (-1,0,0) ECEF.
+  // The NED frames are rotated 90° relative to each other.
+  const LlaLocation origin_loc{0.0, 0.0, 0.0};
+  const LlaLocation point_loc{0.0, 90.0, 0.0};
+
+  // origin: 1 m/s north at origin_loc = (0,0,1) ECEF.
+  // point:  1 m/s east  at point_loc  = (-1,0,0) ECEF.
+  const NedVelocity origin_ned{1.0, 0.0, 0.0};
+  const NedVelocity point_ned{0.0, 1.0, 0.0};
+
+  // Compute AerVelocityView from NED inputs in their respective frames.
+  AerVelocityView view;
+  ASSERT_EQ(VelocityViewFrom(origin_loc, point_loc, origin_ned, point_ned, &view),
+            Status::SUCCESS);
+
+  // Reconstruct: VelocityFrom must return NED at point_loc.
+  NedVelocity reconstructed;
+  ASSERT_EQ(VelocityFrom(origin_loc, point_loc, origin_ned, view, &reconstructed),
+            Status::SUCCESS);
+  ASSERT_NEAR(reconstructed.vnorth, point_ned.vnorth, 1e-9);
+  ASSERT_NEAR(reconstructed.veast, point_ned.veast, 1e-9);
+  ASSERT_NEAR(reconstructed.vdown, point_ned.vdown, 1e-9);
+
+  // Cross-check: the same AerVelocityView computed from ECEF equivalents must match.
+  // north at (0,0) = (0,0,1) ECEF; east at (0,90) = (-1,0,0) ECEF.
+  const EcefVelocity ecef_origin{0.0, 0.0, 1.0};
+  const EcefVelocity ecef_point{-1.0, 0.0, 0.0};
+  AerVelocityView ecef_view;
+  ASSERT_EQ(VelocityViewFrom(origin_loc, point_loc, ecef_origin, ecef_point, &ecef_view),
+            Status::SUCCESS);
+  ASSERT_NEAR(ecef_view.vazimuth, view.vazimuth, 1e-9);
+  ASSERT_NEAR(ecef_view.velevation, view.velevation, 1e-9);
+  ASSERT_NEAR(ecef_view.vrange, view.vrange, 1e-9);
 }
 
 }  // namespace mutatio

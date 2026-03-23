@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "GeographicLib/Constants.hpp"
+
 #include "mutatio/location_view_exchange.h"
 
 namespace mutatio {
@@ -13,8 +14,8 @@ namespace {
 // Computes the AER-to-NED Jacobian. Given the AER position and AerVelocity
 // (angular rates in deg/s, range rate in m/s), returns the equivalent
 // NedVelocity in the NED frame at origin_loc.
-Status AerToNedAtOrigin(const AerLocationView& pos,
-                        const AerVelocity& in, NedVelocity* out) {
+Status AerToNedAtOrigin(const AerLocationView& pos, const AerVelocity& in,
+                        NedVelocity* out) {
   const auto deg    = GeographicLib::Constants::degree();
   const auto vel_az = in.vazimuth * deg;    // deg/s → rad/s
   const auto vel_el = in.velevation * deg;  // deg/s → rad/s
@@ -37,8 +38,8 @@ Status AerToNedAtOrigin(const AerLocationView& pos,
 // Computes the NED-to-AER inverse Jacobian. NedVelocity is expressed in the
 // NED frame at origin_loc. Returns Status::ERROR on singularity (r ≈ 0 or
 // elevation ≈ ±90°).
-Status NedAtOriginToAer(const AerLocationView& pos,
-                        const NedVelocity& in, AerVelocity* out) {
+Status NedAtOriginToAer(const AerLocationView& pos, const NedVelocity& in,
+                        AerVelocity* out) {
   const auto deg     = GeographicLib::Constants::degree();
   const auto cos_az  = std::cos(pos.azimuth * deg);
   const auto sin_az  = std::sin(pos.azimuth * deg);
@@ -49,12 +50,11 @@ Status NedAtOriginToAer(const AerLocationView& pos,
   if (pos.range < epsilon) return Status::ERROR;
   if (std::abs(cos_el) < epsilon) return Status::ERROR;
 
-  const auto vrange =
-      cos_el * cos_az * in.vnorth + cos_el * sin_az * in.veast - sin_el * in.vdown;
-  const auto vel_el_rad =
-      (-sin_el * cos_az * in.vnorth - sin_el * sin_az * in.veast -
-       cos_el * in.vdown) /
-      pos.range;
+  const auto vrange = cos_el * cos_az * in.vnorth + cos_el * sin_az * in.veast -
+                      sin_el * in.vdown;
+  const auto vel_el_rad = (-sin_el * cos_az * in.vnorth -
+                           sin_el * sin_az * in.veast - cos_el * in.vdown) /
+                          pos.range;
   const auto vel_az_rad =
       (-sin_az * in.vnorth + cos_az * in.veast) / (pos.range * cos_el);
 
@@ -176,8 +176,8 @@ Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
 }
 
 // The locations are accepted for API consistency but not used.
-Status VelocityFrom(const LlaLocation&, const LlaLocation&, const AerVelocity& in,
-                    AerVelocity* out) {
+Status VelocityFrom(const LlaLocation&, const LlaLocation&,
+                    const AerVelocity& in, AerVelocity* out) {
   *out = in;
   return Status::SUCCESS;
 }

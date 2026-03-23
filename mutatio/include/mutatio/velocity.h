@@ -21,7 +21,7 @@ struct NedVelocity {
 struct AerVelocity {
   DegreesPerSecond vazimuth;
   DegreesPerSecond velevation;
-  MetersPerSecond  vrange;
+  MetersPerSecond vrange;
 };
 
 using VelocityTypes = std::variant<EcefVelocity, NedVelocity, AerVelocity>;

@@ -141,7 +141,8 @@ TEST(VelocityExchange, VelocityFromTwoLocEcefToNed) {
   const LlaLocation origin_loc{0.0, 0.0, 0.0};
   const LlaLocation point_loc{0.0, 90.0, 0.0};
   NedVelocity result;
-  auto stat = VelocityFrom(origin_loc, point_loc, EcefVelocity{0.0, 1.0, 0.0}, &result);
+  auto stat =
+      VelocityFrom(origin_loc, point_loc, EcefVelocity{0.0, 1.0, 0.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vnorth, 0.0);
   ASSERT_NEAR(result.veast, 0.0, 1e-15);
@@ -154,7 +155,8 @@ TEST(VelocityExchange, VelocityFromTwoLocNedToEcef) {
   const LlaLocation origin_loc{0.0, 0.0, 0.0};
   const LlaLocation point_loc{33.0, 74.0, 0.0};
   EcefVelocity result;
-  auto stat = VelocityFrom(origin_loc, point_loc, NedVelocity{1.0, 0.0, 0.0}, &result);
+  auto stat =
+      VelocityFrom(origin_loc, point_loc, NedVelocity{1.0, 0.0, 0.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vx, 0.0);
   ASSERT_DOUBLE_EQ(result.vy, 0.0);
@@ -167,7 +169,8 @@ TEST(VelocityExchange, VelocityFromTwoLocNedToNed) {
   const LlaLocation origin_loc{0.0, 0.0, 0.0};
   const LlaLocation point_loc{0.0, 90.0, 0.0};
   NedVelocity result;
-  auto stat = VelocityFrom(origin_loc, point_loc, NedVelocity{0.0, 1.0, 0.0}, &result);
+  auto stat =
+      VelocityFrom(origin_loc, point_loc, NedVelocity{0.0, 1.0, 0.0}, &result);
   ASSERT_EQ(stat, Status::SUCCESS);
   ASSERT_DOUBLE_EQ(result.vnorth, 0.0);
   ASSERT_NEAR(result.veast, 0.0, 1e-15);
@@ -346,7 +349,8 @@ TEST(VelocityExchange, AerVelocitySingleLocReturnsError) {
 }
 
 TEST(VelocityExchange, AerVelocityTwoLocVariantDispatch) {
-  // VelocityTypes holding AerVelocity should work through two-location dispatch.
+  // VelocityTypes holding AerVelocity should work through two-location
+  // dispatch.
   const LlaLocation origin{33.0, 74.0, 1000.0};
   const LlaLocation point{33.5, 74.3, 500.0};
   const AerVelocity aer_original{2.5, -1.2, 50.0};
