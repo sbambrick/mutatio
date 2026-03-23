@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 
 #include "mutatio/location.h"
+#include "mutatio/location_exchange.h"
 #include "mutatio/status.h"
 #include "mutatio/velocity.h"
 #include "mutatio/velocity_view.h"
@@ -358,6 +359,82 @@ TEST(VelocityViewExchange, VelocityFromNedNedViewEcef) {
   ASSERT_DOUBLE_EQ(point.vz, 2.0);
 }
 
+// Two-location VelocityFrom — missing overloads (EcefVelocityView +
+// NedVelocityView with varying origin types and output types).
+
+// At (0,0): north = +Z ECEF. EcefVelocityView{0,0,1} = 1 north.
+
+TEST(VelocityViewExchange, TwoLocEcefEcefViewEcef) {
+  const LlaLocation loc{33.0, 74.0, 1000.0};
+  EcefVelocity result;
+  ASSERT_EQ(VelocityFrom(loc, loc, EcefVelocity{10.0, 20.0, 30.0},
+                         EcefVelocityView{5.0, -2.0, 5.0}, &result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(result.vx, 15.0);
+  ASSERT_DOUBLE_EQ(result.vy, 18.0);
+  ASSERT_DOUBLE_EQ(result.vz, 35.0);
+}
+
+TEST(VelocityViewExchange, TwoLocEcefEcefViewNed) {
+  const LlaLocation loc{0.0, 0.0, 0.0};
+  NedVelocity result;
+  // EcefVelocity origin (0,0,0) + EcefView (0,0,1) = (0,0,1) → north at (0,0).
+  ASSERT_EQ(VelocityFrom(loc, loc, EcefVelocity{0.0, 0.0, 0.0},
+                         EcefVelocityView{0.0, 0.0, 1.0}, &result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(result.vnorth, 1.0);
+  ASSERT_DOUBLE_EQ(result.veast, 0.0);
+  ASSERT_DOUBLE_EQ(result.vdown, 0.0);
+}
+
+TEST(VelocityViewExchange, TwoLocNedEcefViewEcef) {
+  const LlaLocation loc{0.0, 0.0, 0.0};
+  EcefVelocity result;
+  // NED origin (1,0,0) north = (0,0,1) ECEF. + EcefView (0,0,1) = (0,0,2).
+  ASSERT_EQ(VelocityFrom(loc, loc, NedVelocity{1.0, 0.0, 0.0},
+                         EcefVelocityView{0.0, 0.0, 1.0}, &result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(result.vx, 0.0);
+  ASSERT_DOUBLE_EQ(result.vy, 0.0);
+  ASSERT_DOUBLE_EQ(result.vz, 2.0);
+}
+
+TEST(VelocityViewExchange, TwoLocNedEcefViewNed) {
+  const LlaLocation loc{0.0, 0.0, 0.0};
+  NedVelocity result;
+  // NED (1,0,0) = (0,0,1) ECEF + EcefView (0,0,1) = (0,0,2) ECEF = (2,0,0) NED.
+  ASSERT_EQ(VelocityFrom(loc, loc, NedVelocity{1.0, 0.0, 0.0},
+                         EcefVelocityView{0.0, 0.0, 1.0}, &result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(result.vnorth, 2.0);
+  ASSERT_DOUBLE_EQ(result.veast, 0.0);
+  ASSERT_DOUBLE_EQ(result.vdown, 0.0);
+}
+
+TEST(VelocityViewExchange, TwoLocNedNedViewEcef) {
+  const LlaLocation loc{0.0, 0.0, 0.0};
+  EcefVelocity result;
+  // NED origin (1,0,0) + NedView (1,0,0) = (2,0,0) NED = (0,0,2) ECEF.
+  ASSERT_EQ(VelocityFrom(loc, loc, NedVelocity{1.0, 0.0, 0.0},
+                         NedVelocityView{1.0, 0.0, 0.0}, &result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(result.vx, 0.0);
+  ASSERT_DOUBLE_EQ(result.vy, 0.0);
+  ASSERT_DOUBLE_EQ(result.vz, 2.0);
+}
+
+TEST(VelocityViewExchange, TwoLocNedNedViewNed) {
+  const LlaLocation loc{33.0, 74.0, 1000.0};
+  NedVelocity result;
+  ASSERT_EQ(VelocityFrom(loc, loc, NedVelocity{10.0, 5.0, 2.0},
+                         NedVelocityView{1.0, 2.0, -1.0}, &result),
+            Status::SUCCESS);
+  // Routes through ECEF; expect result ≈ origin + view = (11, 7, 1).
+  ASSERT_NEAR(result.vnorth, 11.0, 1e-9);
+  ASSERT_NEAR(result.veast, 7.0, 1e-9);
+  ASSERT_NEAR(result.vdown, 1.0, 1e-9);
+}
+
 // Two-location VelocityFrom tests.
 // When origin_loc == point_loc, results must match the single-location
 // overload.
@@ -552,6 +629,241 @@ TEST(VelocityViewExchange, AerVelocityViewFarApartNedFrames) {
   ASSERT_NEAR(ecef_view.vazimuth, view.vazimuth, 1e-9);
   ASSERT_NEAR(ecef_view.velevation, view.velevation, 1e-9);
   ASSERT_NEAR(ecef_view.vrange, view.vrange, 1e-9);
+}
+
+// AerVelocityView cross-type VelocityViewFrom — the 6 overloads not covered by
+// the existing Aer/Aer, Ecef/Ecef, Ned/Ned tests.
+TEST(VelocityViewExchange, AerVelocityViewCrossTypeVelocityViewFrom) {
+  const AerVelocity aer{1.0, 0.5, 100.0};
+  const EcefVelocity ecef{100.0, -50.0, 25.0};
+  const NedVelocity ned{10.0, -5.0, 2.0};
+  AerVelocityView view;
+
+  ASSERT_EQ(
+      VelocityViewFrom(kObserver, kTarget, aer, ecef, &view), Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityViewFrom(kObserver, kTarget, aer, ned, &view), Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityViewFrom(kObserver, kTarget, ecef, aer, &view), Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityViewFrom(kObserver, kTarget, ecef, ned, &view), Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityViewFrom(kObserver, kTarget, ned, aer, &view), Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityViewFrom(kObserver, kTarget, ned, ecef, &view), Status::SUCCESS);
+}
+
+// AerVelocityView cross-type VelocityFrom — the 6 overloads not covered by
+// existing Aer/Aer, Ecef/Ecef, Ned/Ned tests.
+TEST(VelocityViewExchange, AerVelocityViewCrossTypeVelocityFrom) {
+  const AerVelocity aer_origin{1.0, 0.5, 100.0};
+  const EcefVelocity ecef_origin{100.0, -50.0, 25.0};
+  const NedVelocity ned_origin{10.0, -5.0, 2.0};
+  const AerVelocityView view{2.0, -1.0, 20.0};
+
+  AerVelocity aer_out;
+  EcefVelocity ecef_out;
+  NedVelocity ned_out;
+
+  ASSERT_EQ(VelocityFrom(kObserver, kTarget, aer_origin, view, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(kObserver, kTarget, aer_origin, view, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(kObserver, kTarget, ecef_origin, view, &aer_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(kObserver, kTarget, ecef_origin, view, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(kObserver, kTarget, ned_origin, view, &aer_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(kObserver, kTarget, ned_origin, view, &ecef_out),
+            Status::SUCCESS);
+}
+
+// Two-location throwing wrapper success path + throw paths.
+TEST(VelocityViewExchange, ThrowingWrappers) {
+  // Two-loc VelocityFrom throwing wrapper — success path.
+  auto result = VelocityFrom<AerVelocity>(
+      kObserver, kTarget, AerVelocity{1.0, 0.5, 100.0},
+      AerVelocityView{2.0, -1.0, 20.0});
+  ASSERT_NEAR(result.vazimuth, 3.0, 1e-9);
+
+  const LlaLocation loc{33.0, 74.0, 0.0};
+
+  // Single-loc VelocityViewFrom throw: AerVelocityView output requires 2 locs.
+  EXPECT_THROW(
+      (VelocityViewFrom<AerVelocityView>(loc, AerVelocity{1.0, 0.0, 10.0},
+                                         EcefVelocity{1.0, 0.0, 0.0})),
+      std::invalid_argument);
+
+  // Single-loc VelocityFrom throw: AerVelocityView input requires 2 locs.
+  EXPECT_THROW(
+      (VelocityFrom<EcefVelocity>(loc, EcefVelocity{1.0, 0.0, 0.0},
+                                   AerVelocityView{1.0, 0.0, 5.0})),
+      std::invalid_argument);
+
+  // Two-loc VelocityFrom throw: singular geometry (origin == point → range=0).
+  EXPECT_THROW(
+      (VelocityFrom<AerVelocity>(loc, loc, NedVelocity{1.0, 0.0, 0.0},
+                                  AerVelocityView{1.0, 0.0, 5.0})),
+      std::invalid_argument);
+
+  // Two-loc VelocityViewFrom throw: singular geometry.
+  EXPECT_THROW(
+      (VelocityViewFrom<AerVelocityView>(loc, loc, NedVelocity{1.0, 0.0, 0.0},
+                                          NedVelocity{2.0, 0.0, 0.0})),
+      std::invalid_argument);
+}
+
+// LocType template overloads — only instantiated with non-LlaLocation types.
+TEST(VelocityViewExchange, EcefLocSingleLocTemplates) {
+  const LlaLocation lla_loc{0.0, 0.0, 0.0};
+  const EcefLocation ecef_loc = LocationFrom<EcefLocation>(lla_loc);
+
+  EcefVelocityView ecef_view;
+  NedVelocityView ned_view;
+  EcefVelocity ecef_out;
+  NedVelocity ned_out;
+
+  // 8 VelocityViewFrom single-loc templates.
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                             EcefVelocity{0, 0, 1}, &ecef_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                             NedVelocity{1, 0, 0}, &ecef_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, NedVelocity{0, 0, 0},
+                             EcefVelocity{0, 0, 1}, &ecef_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, NedVelocity{0, 0, 0},
+                             NedVelocity{1, 0, 0}, &ecef_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                             EcefVelocity{0, 0, 1}, &ned_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, NedVelocity{0, 0, 0},
+                             NedVelocity{1, 0, 0}, &ned_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                             NedVelocity{1, 0, 0}, &ned_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_loc, NedVelocity{0, 0, 0},
+                             EcefVelocity{0, 0, 1}, &ned_view),
+            Status::SUCCESS);
+
+  // 8 VelocityFrom single-loc templates.
+  ASSERT_EQ(VelocityFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, EcefVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, NedVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, NedVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, NedVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, NedVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ned_out),
+            Status::SUCCESS);
+
+  ASSERT_DOUBLE_EQ(ned_out.vnorth, 1.0);
+}
+
+TEST(VelocityViewExchange, EcefLocTwoLocTemplates) {
+  const LlaLocation lla_obs{33.0, 74.0, 0.0};
+  const LlaLocation lla_tgt{33.5, 74.3, 500.0};
+  const EcefLocation ecef_obs = LocationFrom<EcefLocation>(lla_obs);
+  const EcefLocation ecef_tgt = LocationFrom<EcefLocation>(lla_tgt);
+
+  EcefVelocity ecef_out;
+  NedVelocity ned_out;
+
+  // 8 two-loc VelocityFrom templates (Ecef/NedVelocity + Ecef/NedVelocityView).
+  const LlaLocation lla_loc{0.0, 0.0, 0.0};
+  const EcefLocation ecef_loc = LocationFrom<EcefLocation>(lla_loc);
+
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, EcefVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, EcefVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, EcefVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, EcefVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, NedVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, NedVelocity{0, 0, 0},
+                         EcefVelocityView{0, 0, 1}, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, NedVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_loc, ecef_loc, NedVelocity{0, 0, 0},
+                         NedVelocityView{1, 0, 0}, &ned_out),
+            Status::SUCCESS);
+
+  // 9 two-loc AerVelocityView VelocityViewFrom templates.
+  AerVelocityView aer_view;
+  const AerVelocity aer{1.0, 0.5, 100.0};
+  const EcefVelocity ecef{100.0, -50.0, 25.0};
+  const NedVelocity ned{10.0, -5.0, 2.0};
+
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, aer, aer, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, aer, ecef, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, aer, ned, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, ecef, aer, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, ecef, ecef, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, ecef, ned, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, ned, aer, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, ned, ecef, &aer_view),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, ned, ned, &aer_view),
+            Status::SUCCESS);
+
+  // 9 two-loc AerVelocityView VelocityFrom templates.
+  AerVelocity aer_out;
+  const AerVelocityView view{2.0, -1.0, 20.0};
+
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, aer, view, &aer_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, aer, view, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, aer, view, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, ecef, view, &aer_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, ecef, view, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, ecef, view, &ned_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, ned, view, &aer_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, ned, view, &ecef_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, ned, view, &ned_out),
+            Status::SUCCESS);
 }
 
 }  // namespace mutatio

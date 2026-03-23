@@ -348,6 +348,130 @@ TEST(VelocityExchange, AerVelocitySingleLocReturnsError) {
   ASSERT_EQ(VelocityFrom(loc, ned_in, &aer_out), Status::ERROR);
 }
 
+TEST(VelocityExchange, TwoLocEcefToEcefIdentity) {
+  // Two-location ECEF→ECEF: identity regardless of locations.
+  const LlaLocation loc{33.0, 74.0, 1000.0};
+  EcefVelocity result;
+  auto stat = VelocityFrom(loc, loc, EcefVelocity{1.0, 2.0, 3.0}, &result);
+  ASSERT_EQ(stat, Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(result.vx, 1.0);
+  ASSERT_DOUBLE_EQ(result.vy, 2.0);
+  ASSERT_DOUBLE_EQ(result.vz, 3.0);
+}
+
+TEST(VelocityExchange, AerVelocitySingleLocMissingErrors) {
+  // AerVelocity→AerVelocity and EcefVelocity→AerVelocity single-loc → ERROR.
+  const LlaLocation loc{33.0, 74.0, 0.0};
+  AerVelocity aer_out;
+  ASSERT_EQ(VelocityFrom(loc, AerVelocity{1.0, 0.0, 10.0}, &aer_out),
+            Status::ERROR);
+  ASSERT_EQ(VelocityFrom(loc, EcefVelocity{1.0, 0.0, 0.0}, &aer_out),
+            Status::ERROR);
+}
+
+// LocType template overloads — only instantiated with non-LlaLocation types.
+TEST(VelocityExchange, VelocityFromEcefLocSingleLoc) {
+  const LlaLocation lla_loc{0.0, 0.0, 0.0};
+  const EcefLocation ecef_loc = LocationFrom<EcefLocation>(lla_loc);
+
+  NedVelocity ned_result;
+  // Templates: EcefVelocity→NedVelocity, NedVelocity→EcefVelocity, identities.
+  ASSERT_EQ(VelocityFrom(ecef_loc, EcefVelocity{0.0, 0.0, 1.0}, &ned_result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ned_result.vnorth, 1.0);
+
+  EcefVelocity ecef_result;
+  ASSERT_EQ(VelocityFrom(ecef_loc, NedVelocity{1.0, 0.0, 0.0}, &ecef_result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ecef_result.vz, 1.0);
+
+  ASSERT_EQ(
+      VelocityFrom(ecef_loc, EcefVelocity{1.0, 2.0, 3.0}, &ecef_result),
+      Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ecef_result.vx, 1.0);
+
+  ASSERT_EQ(VelocityFrom(ecef_loc, NedVelocity{1.0, 2.0, 3.0}, &ned_result),
+            Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ned_result.vnorth, 1.0);
+
+  // AerVelocity single-loc with EcefLocation → ERROR.
+  AerVelocity aer_out;
+  ASSERT_EQ(VelocityFrom(ecef_loc, AerVelocity{1.0, 0.0, 10.0}, &ecef_result),
+            Status::ERROR);
+  ASSERT_EQ(VelocityFrom(ecef_loc, AerVelocity{1.0, 0.0, 10.0}, &ned_result),
+            Status::ERROR);
+  ASSERT_EQ(VelocityFrom(ecef_loc, AerVelocity{1.0, 0.0, 10.0}, &aer_out),
+            Status::ERROR);
+  ASSERT_EQ(VelocityFrom(ecef_loc, EcefVelocity{1.0, 0.0, 0.0}, &aer_out),
+            Status::ERROR);
+  ASSERT_EQ(VelocityFrom(ecef_loc, NedVelocity{1.0, 0.0, 0.0}, &aer_out),
+            Status::ERROR);
+}
+
+TEST(VelocityExchange, VelocityFromEcefLocTwoLoc) {
+  const LlaLocation lla_loc{0.0, 0.0, 0.0};
+  const EcefLocation ecef_loc = LocationFrom<EcefLocation>(lla_loc);
+
+  // Two-loc templates with EcefLocation (not covered by LlaLocation tests).
+  NedVelocity ned_result;
+  EcefVelocity ecef_result;
+
+  ASSERT_EQ(
+      VelocityFrom(ecef_loc, ecef_loc, EcefVelocity{0.0, 0.0, 1.0}, &ned_result),
+      Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ned_result.vnorth, 1.0);
+
+  ASSERT_EQ(
+      VelocityFrom(ecef_loc, ecef_loc, EcefVelocity{1.0, 2.0, 3.0}, &ecef_result),
+      Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ecef_result.vx, 1.0);
+
+  ASSERT_EQ(
+      VelocityFrom(ecef_loc, ecef_loc, NedVelocity{1.0, 0.0, 0.0}, &ecef_result),
+      Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ecef_result.vz, 1.0);
+
+  ASSERT_EQ(
+      VelocityFrom(ecef_loc, ecef_loc, NedVelocity{1.0, 0.0, 0.0}, &ned_result),
+      Status::SUCCESS);
+  ASSERT_DOUBLE_EQ(ned_result.vnorth, 1.0);
+
+  // AerVelocity two-loc templates with EcefLocation.
+  const EcefLocation ecef_obs =
+      LocationFrom<EcefLocation>(LlaLocation{33.0, 74.0, 0.0});
+  const EcefLocation ecef_tgt =
+      LocationFrom<EcefLocation>(LlaLocation{33.5, 74.3, 500.0});
+  AerVelocity aer_out;
+
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, AerVelocity{1.0, 0.0, 100.0},
+                         &ecef_result),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, AerVelocity{1.0, 0.0, 100.0},
+                         &ned_result),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, AerVelocity{1.0, 0.0, 100.0},
+                         &aer_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, EcefVelocity{1.0, 0.0, 0.0},
+                         &aer_out),
+            Status::SUCCESS);
+  ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, NedVelocity{1.0, 0.0, 0.0},
+                         &aer_out),
+            Status::SUCCESS);
+}
+
+TEST(VelocityExchange, ThrowingWrapperThrows) {
+  const LlaLocation loc{33.0, 74.0, 0.0};
+  // Single-loc AerVelocity → ERROR → throw.
+  EXPECT_THROW(
+      (VelocityFrom<NedVelocity>(loc, AerVelocity{1.0, 0.0, 10.0})),
+      std::invalid_argument);
+  // Two-loc singular geometry (range=0) → ERROR → throw.
+  EXPECT_THROW(
+      (VelocityFrom<AerVelocity>(loc, loc, NedVelocity{1.0, 0.0, 0.0})),
+      std::invalid_argument);
+}
+
 TEST(VelocityExchange, AerVelocityTwoLocVariantDispatch) {
   // VelocityTypes holding AerVelocity should work through two-location
   // dispatch.

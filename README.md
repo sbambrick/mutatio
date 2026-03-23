@@ -302,4 +302,3 @@ bazel test //mutatio:location_exchange_test          # run one test
 bazel run //:format                                  # format sources
 bazel run //:check_format                            # check formatting
 ```
-All dependencies are fetched automatically from the [Bazel Central Registry](https://registry.bazel.build). Requires Bazel 9 (see `.bazelversion`).
