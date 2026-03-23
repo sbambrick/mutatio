@@ -1,0 +1,9 @@
+module(
+    name = "mutatio",
+    version = "0.0.1",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.17")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "geographiclib", version = "2.4.0.bcr.2")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")

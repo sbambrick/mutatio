@@ -1,0 +1,4 @@
+build --cxxopt=-std=c++17
+build --host_cxxopt=-std=c++17
+build --show_timestamps
+test --test_output=errors

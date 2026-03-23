@@ -288,8 +288,18 @@ auto point_ecef = VelocityFrom<EcefVelocity>(observer, target,
 
 ## Quick Start
 
+**CMake + Conan:**
 ```bash
 conan build . --build=missing
 cmake --build build/Release --target coverage
 cmake --build build/Release --target format
 ```
+
+**Bazel:**
+```bash
+bazel test //mutatio:all_tests                       # run all tests
+bazel test //mutatio:location_exchange_test          # run one test
+bazel run //:format                                  # format sources
+bazel run //:check_format                            # check formatting
+```
+All dependencies are fetched automatically from the [Bazel Central Registry](https://registry.bazel.build). Requires Bazel 9 (see `.bazelversion`).

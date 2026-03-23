@@ -133,7 +133,7 @@ Status ViewFrom(const OriginType& origin, const NedLocationView& in,
   const auto h     = -in.down;
   const auto range = std::sqrt((s * s) + (h * h));
   const auto elev  = std::atan2(h, s) / deg_to_rad;
-  const auto azi   = std::atan2(in.north, in.east) / deg_to_rad;
+  const auto azi   = std::atan2(in.east, in.north) / deg_to_rad;
 
   *out = AerLocationView{azi, elev, range};
 
@@ -155,7 +155,7 @@ Status ViewFrom(const OriginType& origin, const NedLocationView& in,
 
   const auto deg_to_rad = GeographicLib::Constants::degree();
   const Meter s12   = std::sqrt((in.north * in.north) + (in.east * in.east));
-  const Degree azi1 = std::atan2(in.north, in.east) / deg_to_rad;
+  const Degree azi1 = std::atan2(in.east, in.north) / deg_to_rad;
 
   Degree lat2, lon2, azi2;
   earth.Direct(origin_lla.lat, origin_lla.lon, azi1, s12, lat2, lon2, azi2);
@@ -265,7 +265,7 @@ Status LocationFrom(const OriginType& origin, const NedLocationView& view,
   const auto deg_to_rad = GeographicLib::Constants::degree();
   const Meter s12 =
       std::sqrt((view.north * view.north) + (view.east * view.east));
-  const Degree azi1 = std::atan2(view.north, view.east) / deg_to_rad;
+  const Degree azi1 = std::atan2(view.east, view.north) / deg_to_rad;
 
   Degree lat2, lon2, azi2;
   earth.Direct(origin_lla.lat, origin_lla.lon, azi1, s12, lat2, lon2, azi2);

@@ -528,23 +528,26 @@ TEST(VelocityViewExchange, AerVelocityViewFarApartNedFrames) {
 
   // Compute AerVelocityView from NED inputs in their respective frames.
   AerVelocityView view;
-  ASSERT_EQ(VelocityViewFrom(origin_loc, point_loc, origin_ned, point_ned, &view),
-            Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityViewFrom(origin_loc, point_loc, origin_ned, point_ned, &view),
+      Status::SUCCESS);
 
   // Reconstruct: VelocityFrom must return NED at point_loc.
   NedVelocity reconstructed;
-  ASSERT_EQ(VelocityFrom(origin_loc, point_loc, origin_ned, view, &reconstructed),
-            Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityFrom(origin_loc, point_loc, origin_ned, view, &reconstructed),
+      Status::SUCCESS);
   ASSERT_NEAR(reconstructed.vnorth, point_ned.vnorth, 1e-9);
   ASSERT_NEAR(reconstructed.veast, point_ned.veast, 1e-9);
   ASSERT_NEAR(reconstructed.vdown, point_ned.vdown, 1e-9);
 
-  // Cross-check: the same AerVelocityView computed from ECEF equivalents must match.
-  // north at (0,0) = (0,0,1) ECEF; east at (0,90) = (-1,0,0) ECEF.
+  // Cross-check: the same AerVelocityView computed from ECEF equivalents must
+  // match. north at (0,0) = (0,0,1) ECEF; east at (0,90) = (-1,0,0) ECEF.
   const EcefVelocity ecef_origin{0.0, 0.0, 1.0};
   const EcefVelocity ecef_point{-1.0, 0.0, 0.0};
   AerVelocityView ecef_view;
-  ASSERT_EQ(VelocityViewFrom(origin_loc, point_loc, ecef_origin, ecef_point, &ecef_view),
+  ASSERT_EQ(VelocityViewFrom(origin_loc, point_loc, ecef_origin, ecef_point,
+                             &ecef_view),
             Status::SUCCESS);
   ASSERT_NEAR(ecef_view.vazimuth, view.vazimuth, 1e-9);
   ASSERT_NEAR(ecef_view.velevation, view.velevation, 1e-9);

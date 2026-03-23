@@ -1,0 +1,65 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+cc_library(
+    name = "mutatio",
+    srcs = [
+        "src/location_exchange.cc",
+        "src/velocity_exchange.cc",
+        "src/velocity_view_exchange.cc",
+    ],
+    hdrs = glob(["include/**/*.h"]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+    deps = ["@geographiclib//:geographiclib"],
+)
+
+cc_test(
+    name = "location_exchange_test",
+    srcs = ["tests/location_exchange_test.cc"],
+    deps = [
+        ":mutatio",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "velocity_exchange_test",
+    srcs = ["tests/velocity_exchange_test.cc"],
+    deps = [
+        ":mutatio",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "location_view_exchange_test",
+    srcs = ["tests/location_view_exchange_test.cc"],
+    deps = [
+        ":mutatio",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "velocity_view_exchange_test",
+    srcs = ["tests/velocity_view_exchange_test.cc"],
+    deps = [
+        ":mutatio",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+test_suite(
+    name = "all_tests",
+    tests = [
+        ":location_exchange_test",
+        ":location_view_exchange_test",
+        ":velocity_exchange_test",
+        ":velocity_view_exchange_test",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,16 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+test_suite(
+    name = "test",
+    tests = ["//mutatio:all_tests"],
+)
+
+sh_binary(
+    name = "format",
+    srcs = ["tools/format.sh"],
+)
+
+sh_binary(
+    name = "check_format",
+    srcs = ["tools/check_format.sh"],
+)
