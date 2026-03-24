@@ -23,7 +23,11 @@ function(add_test_target tgt_name tgt_dir tgt_test_deps)
       gtest::gtest
     )
 
-    add_custom_target(${tgt_name_test} COMMAND ${tgt_name_test_bin})
+    add_custom_target(
+      ${tgt_name_test}
+      COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
+      COMMAND ${tgt_name_test_bin}
+    )
     add_dependencies(test_bin ${tgt_name_test_bin})
     add_dependencies(test ${tgt_name_test})
   endif()
