@@ -100,21 +100,11 @@ specific_loc          = LocationFrom<LlaLocation>(any_loc, any_view);
 
 ### Velocity
 
-Velocities mirror Locations and are absolute. Converting between coordinate
-frames requires a reference Location to define the local orientation of the
-WGS84 ellipsoid.
+Velocities are absolute and expressed in the ECEF frame. Because ECEF is
+frame-independent, no reference Location is needed for velocity conversions.
 
 * EcefVelocity - A velocity in meters per second expressed in the ECEF
   coordinate frame.
-* NedVelocity - A velocity in meters per second expressed as North, East, and
-  Down components relative to the WGS84 ellipsoid at a given Location.
-* AerVelocity - A velocity expressed as the time derivatives of Azimuth
-  (deg/s), Elevation (deg/s), and Range (m/s) as observed from an origin
-  Location. Because the Jacobian depends on the instantaneous geometry,
-  AerVelocity conversions require two locations: `origin_loc` (the observer)
-  and `point_loc` (the target's current position). Single-location calls
-  return `Status::ERROR`. The NedVelocity output from an AerVelocity
-  conversion is expressed in the NED frame at `origin_loc`.
 
 ```c++
 #include "mutatio/velocity.h"
@@ -125,69 +115,17 @@ WGS84 ellipsoid.
 // Define a velocity in the ECEF frame.
 EcefVelocity ecef_vel{100.0, -50.0, 25.0};
 
-// Convert to a NED velocity at a given location.
-LlaLocation loc{33.0, 74.0, 1000.0};
-auto ned_vel = VelocityFrom<NedVelocity>(loc, ecef_vel);
+// Copy to a pre-allocated Velocity (identity; no location needed).
+EcefVelocity out;
+auto stat = VelocityFrom(ecef_vel, &out);
 
-// Convert to a pre-allocated Velocity.
-NedVelocity pre_alloc_vel;
-auto stat = VelocityFrom(loc, ecef_vel, &pre_alloc_vel);
+// Throwing form.
+auto ecef_copy = VelocityFrom<EcefVelocity>(ecef_vel);
 
-// Convert back to ECEF.
-auto ecef_vel_out = VelocityFrom<EcefVelocity>(loc, ned_vel);
-
-// Convert arbitrary Velocity and Location variants.
+// Variant dispatch — also requires no location.
 VelocityTypes any_vel = EcefVelocity{100.0, -50.0, 25.0};
-LocationTypes any_loc = LlaLocation{33.0, 74.0, 1000.0};
-NedVelocity specific_vel;
-stat = VelocityFrom(any_loc, any_vel, &specific_vel);
-
-// Two-location conversion — origin_loc defines the NED frame of the input
-// velocity and point_loc defines the NED frame of the output. All arithmetic
-// is done in ECEF to avoid composing rotation matrices.
-LlaLocation origin_loc{0.0, 0.0, 0.0};
-LlaLocation point_loc{0.0, 90.0, 0.0};
-NedVelocity ned_at_origin{0.0, 1.0, 0.0};  // east at origin_loc
-
-// Express the same velocity in the NED frame at point_loc.
-auto ned_at_point = VelocityFrom<NedVelocity>(origin_loc, point_loc, ned_at_origin);
-
-// Pre-allocated and variant forms are also supported.
-NedVelocity pre_alloc;
-stat = VelocityFrom(origin_loc, point_loc, ned_at_origin, &pre_alloc);
-stat = VelocityFrom(any_loc, any_loc, any_vel, &specific_vel);
-```
-
-AerVelocity conversions always use the two-location form. The NedVelocity
-output is in the NED frame at `origin_loc`.
-
-```c++
-#include "mutatio/velocity.h"
-#include "mutatio/velocity_exchange.h"
-
-...
-
-LlaLocation observer{33.0, 74.0, 0.0}; // observer
-LlaLocation target{33.5, 74.3, 500.0}; // target's current position
-
-// Convert a measured AerVelocity to NedVelocity (in the observers's NED frame).
-AerVelocity aer_vel{0.5, -0.2, 120.0};  // deg/s, deg/s, m/s
-auto ned_vel = VelocityFrom<NedVelocity>(observer, target, aer_vel);
-
-// Convert NedVelocity (at observer) back to AerVelocity.
-auto reconstructed = VelocityFrom<AerVelocity>(observer, target, ned_vel);
-
-// Convert to ECEF velocity.
-auto ecef_vel = VelocityFrom<EcefVelocity>(observer, target, aer_vel);
-
-// Pre-allocated form.
-AerVelocity aer_out;
-stat = VelocityFrom(observer, target, ned_vel, &aer_out);
-
-// AerVelocity can be held in VelocityTypes; two-location variant dispatch works.
-VelocityTypes vel_variant = aer_vel;
-NedVelocity ned_out;
-stat = VelocityFrom(observer, target, vel_variant, &ned_out);
+EcefVelocity specific_vel;
+stat = VelocityFrom(any_vel, &specific_vel);
 ```
 
 ### VelocityView
@@ -198,22 +136,15 @@ another Velocity with respect to a given coordinate frame.
 * EcefVelocityView - The difference in meters per second between two velocities
   expressed in the ECEF coordinate frame.
 * NedVelocityView - The difference in meters per second between two velocities
-  expressed as North, East, and Down components.
+  expressed as North, East, and Down components. Uses `origin_loc` to define
+  the NED frame orientation.
 * AerVelocityView - The difference between two velocities expressed as Azimuth
-  rate (deg/s), Elevation rate (deg/s), and Range rate (m/s) in the AER frame
-  defined by `origin_loc` (observer) and `point_loc` (target position).
-  AerVelocityView conversions always use the two-location form — single-location
-  calls return `Status::ERROR`.
+  rate (deg/s), Elevation rate (deg/s), and Range rate (m/s). Uses both
+  `origin_loc` and `point_loc` to define the AER geometry.
 
-`EcefVelocityView` and `NedVelocityView` conversions require a single reference
-Location. `AerVelocityView` conversions require two locations (`origin_loc` and
-`point_loc`) to define the AER geometry. Cross-type conversions are fully
-supported: origin, view, and output can each be in different frames.
-
-For `NedVelocity` inputs and outputs, `AerVelocityView` follows the same
-two-location frame convention as `VelocityFrom`: `origin_loc` defines the NED
-frame of the origin velocity, `point_loc` defines the NED frame of the point
-velocity and any `NedVelocity` output.
+The input velocity is always `EcefVelocity`. All VelocityView conversions
+require an origin location plus either a point location or a `LocationView`
+encoding the relative position of the point.
 
 ```c++
 #include "mutatio/velocity_view.h"
@@ -221,69 +152,59 @@ velocity and any `NedVelocity` output.
 
 ...
 
-LlaLocation loc{33.0, 74.0, 1000.0};
+LlaLocation origin_loc{33.0, 74.0, 1000.0};
+LlaLocation point_loc{33.5, 74.3, 500.0};
 EcefVelocity origin_vel{10.0, 20.0, 30.0};
 EcefVelocity point_vel{15.0, 18.0, 35.0};
 
 // Construct an EcefVelocityView between two velocities.
-auto ecef_vel_view = VelocityViewFrom<EcefVelocityView>(loc, origin_vel, point_vel);
+auto ecef_vel_view = VelocityViewFrom<EcefVelocityView>(origin_loc, point_loc,
+                                                        origin_vel, point_vel);
 
 // Construct a pre-allocated EcefVelocityView.
 EcefVelocityView pre_alloc_view;
-auto stat = VelocityViewFrom(loc, origin_vel, point_vel, &pre_alloc_view);
+auto stat = VelocityViewFrom(origin_loc, point_loc, origin_vel, point_vel,
+                             &pre_alloc_view);
 
 // Reconstruct a Velocity from an origin Velocity and a VelocityView.
-// The output type is independent of the origin and view frame.
-auto point_ecef = VelocityFrom<EcefVelocity>(loc, origin_vel, ecef_vel_view);
-auto point_ned  = VelocityFrom<NedVelocity>(loc, origin_vel, ecef_vel_view);
+auto point_ecef = VelocityFrom<EcefVelocity>(origin_loc, point_loc, origin_vel,
+                                             ecef_vel_view);
 
-// Construct a NedVelocityView between two velocities.
-auto ned_vel_view = VelocityViewFrom<NedVelocityView>(loc, origin_vel, point_vel);
+// Construct a NedVelocityView.
+auto ned_vel_view = VelocityViewFrom<NedVelocityView>(origin_loc, point_loc,
+                                                      origin_vel, point_vel);
 
-// Reconstruct from a NedVelocityView — output frame is independent.
-auto point_ecef2 = VelocityFrom<EcefVelocity>(loc, origin_vel, ned_vel_view);
-auto point_ned2  = VelocityFrom<NedVelocity>(loc, origin_vel, ned_vel_view);
+// Reconstruct from a NedVelocityView.
+auto point_ecef2 = VelocityFrom<EcefVelocity>(origin_loc, point_loc, origin_vel,
+                                              ned_vel_view);
 
-// Cross-type: origin, view, and output can all be in different frames.
-NedVelocity ned_origin{10.0, 20.0, 30.0};
-auto cross_ecef_view = VelocityViewFrom<EcefVelocityView>(loc, ned_origin, point_vel);
-auto cross_ned_view  = VelocityViewFrom<NedVelocityView>(loc, ned_origin, point_vel);
-auto cross_output    = VelocityFrom<NedVelocity>(loc, ned_origin, cross_ecef_view);
+// AerVelocityView.
+AerVelocityView aer_vel_view;
+stat = VelocityViewFrom(origin_loc, point_loc, origin_vel, point_vel,
+                        &aer_vel_view);
 
-// Variant dispatch requires a location for all VelocityViewFrom and VelocityFrom calls.
+// Reconstruct from an AerVelocityView.
+EcefVelocity reconstructed;
+stat = VelocityFrom(origin_loc, point_loc, origin_vel, aer_vel_view,
+                    &reconstructed);
+
+// Alternatively, pass a LocationView in place of point_loc.
+AerLocationView aer_loc = ViewFrom<AerLocationView>(origin_loc, point_loc);
+stat = VelocityViewFrom(origin_loc, aer_loc, origin_vel, point_vel,
+                        &aer_vel_view);
+stat = VelocityFrom(origin_loc, aer_loc, origin_vel, aer_vel_view,
+                    &reconstructed);
+
+// Variant dispatch.
 VelocityTypes any_origin = EcefVelocity{10.0, 20.0, 30.0};
-VelocityTypes any_point  = NedVelocity{1.0, 2.0, 3.0};
+VelocityTypes any_point  = EcefVelocity{15.0, 18.0, 35.0};
 EcefVelocityView variant_view;
-stat = VelocityViewFrom(loc, any_origin, any_point, &variant_view);
+stat = VelocityViewFrom(origin_loc, point_loc, any_origin, any_point,
+                        &variant_view);
 
-// ... or using arbitrary Velocity and VelocityView variants.
-// The output type is independent of the variant frames held at runtime.
 VelocityViewTypes any_vel_view = EcefVelocityView{5.0, -2.0, 5.0};
 EcefVelocity ecef_out;
-stat = VelocityFrom(loc, any_origin, any_vel_view, &ecef_out);
-NedVelocity ned_out;
-stat = VelocityFrom(loc, any_origin, any_vel_view, &ned_out);
-
-// AerVelocityView — always requires two locations.
-LlaLocation observer{33.0, 74.0, 0.0};
-LlaLocation target{33.5, 74.3, 500.0};
-
-// origin_vel is in the NED frame at observer; point_vel is in the NED frame at target.
-NedVelocity origin_vel{10.0, 5.0, 0.0};
-NedVelocity point_vel{12.0, 3.0, -1.0};
-AerVelocityView aer_vel_view;
-stat = VelocityViewFrom(observer, target, origin_vel, point_vel, &aer_vel_view);
-
-// Reconstruct point_vel — output NedVelocity is in the NED frame at target.
-NedVelocity reconstructed;
-stat = VelocityFrom(observer, target, origin_vel, aer_vel_view, &reconstructed);
-
-// Origin and point velocities can be in any frame; output frame is independent.
-EcefVelocity ecef_origin_vel{100.0, -50.0, 25.0};
-auto aer_view2 = VelocityViewFrom<AerVelocityView>(observer, target,
-                                                   ecef_origin_vel, point_vel);
-auto point_ecef = VelocityFrom<EcefVelocity>(observer, target,
-                                             ecef_origin_vel, aer_view2);
+stat = VelocityFrom(origin_loc, point_loc, any_origin, any_vel_view, &ecef_out);
 ```
 
 ## Quick Start

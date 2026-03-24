@@ -4,6 +4,8 @@
 
 #include "mutatio/location.h"
 #include "mutatio/location_exchange.h"
+#include "mutatio/location_view.h"
+#include "mutatio/location_view_exchange.h"
 #include "mutatio/status.h"
 #include "mutatio/variant_overloaded.h"
 #include "mutatio/velocity.h"
@@ -11,743 +13,331 @@
 
 namespace mutatio {
 
-// EcefVelocityView — NED velocities are converted to ECEF first.
-Status VelocityViewFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                        const EcefVelocity& point, EcefVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                        const NedVelocity& point, EcefVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& loc, const NedVelocity& origin,
-                        const EcefVelocity& point, EcefVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& loc, const NedVelocity& origin,
-                        const NedVelocity& point, EcefVelocityView* out);
-
-// NedVelocityView — a location is required to define the NED frame.
-Status VelocityViewFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                        const EcefVelocity& point, NedVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& loc, const NedVelocity& origin,
-                        const NedVelocity& point, NedVelocityView* out);
-
-// Cross-type NedVelocityView — NED velocities are converted to ECEF first.
-Status VelocityViewFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                        const NedVelocity& point, NedVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& loc, const NedVelocity& origin,
-                        const EcefVelocity& point, NedVelocityView* out);
-
-Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out);
-Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out);
-Status VelocityFrom(const LlaLocation& loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out);
-Status VelocityFrom(const LlaLocation& loc, const NedVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& loc, const NedVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out);
-
-// Two-location VelocityFrom — origin_loc defines the NED frame for the origin
-// velocity and view; point_loc defines the NED frame for the output velocity.
-// All arithmetic is performed in ECEF.
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const EcefVelocityView& view,
-                    EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const EcefVelocityView& view,
-                    NedVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const NedVelocityView& view,
-                    EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const NedVelocityView& view,
-                    NedVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const EcefVelocityView& view,
-                    EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const EcefVelocityView& view,
-                    NedVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const NedVelocityView& view,
-                    EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const NedVelocityView& view,
-                    NedVelocity* out);
-
-// AerVelocityView requires two locations; single-location calls always return
-// ERROR.
-template <class LocType, class OrigVel, class PointVel>
-inline Status VelocityViewFrom(const LocType&, const OrigVel&, const PointVel&,
-                               AerVelocityView*) {
-  return Status::ERROR;
-}
-template <class LocType, class OrigVel, class OutVel>
-inline Status VelocityFrom(const LocType&, const OrigVel&,
-                           const AerVelocityView&, OutVel*) {
-  return Status::ERROR;
-}
-
-// Two-location AerVelocityView VelocityViewFrom — origin and point velocities
-// are converted to AerVelocity using the two-location Jacobian, then
-// subtracted.
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const AerVelocity& origin,
-                        const AerVelocity& point, AerVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const AerVelocity& origin,
-                        const EcefVelocity& point, AerVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const AerVelocity& origin,
-                        const NedVelocity& point, AerVelocityView* out);
+// Two-location VelocityViewFrom — origin_loc and point_loc define the geometry.
+// EcefVelocityView: locations accepted for API consistency but unused.
 Status VelocityViewFrom(const LlaLocation& origin_loc,
                         const LlaLocation& point_loc,
-                        const EcefVelocity& origin, const AerVelocity& point,
-                        AerVelocityView* out);
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, EcefVelocityView* out_vel);
+
+// NedVelocityView: origin_loc defines the NED frame; point_loc unused.
 Status VelocityViewFrom(const LlaLocation& origin_loc,
                         const LlaLocation& point_loc,
-                        const EcefVelocity& origin, const EcefVelocity& point,
-                        AerVelocityView* out);
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, NedVelocityView* out_vel);
+
+// AerVelocityView: both locations define the observer-target geometry.
 Status VelocityViewFrom(const LlaLocation& origin_loc,
                         const LlaLocation& point_loc,
-                        const EcefVelocity& origin, const NedVelocity& point,
-                        AerVelocityView* out);
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, AerVelocityView* out_vel);
+
+// Two-location VelocityFrom — reconstruct EcefVelocity from origin + view.
+// EcefVelocityView: both locations unused.
+// NedVelocityView: origin_loc defines the NED frame; point_loc unused.
+// AerVelocityView: both locations define the observer-target geometry.
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                    const EcefVelocity& origin_vel,
+                    const EcefVelocityView& view_vel, EcefVelocity* out_vel);
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                    const EcefVelocity& origin_vel,
+                    const NedVelocityView& view_vel, EcefVelocity* out_vel);
+Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                    const EcefVelocity& origin_vel,
+                    const AerVelocityView& view_vel, EcefVelocity* out_vel);
+
+// Two-location LocType overloads — convert any location type to LlaLocation,
+// then delegate. PointLocType is constrained to non-LocationView types to avoid
+// ambiguity with the LocationView overloads below.
+template <class OriginLocType, class PointLocType,
+          class = std::enable_if_t<
+              !is_one_of_variants_types<LocationViewTypes, PointLocType>>>
+Status VelocityViewFrom(const OriginLocType& origin_loc,
+                        const PointLocType& point_loc,
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, EcefVelocityView* out_vel) {
+  LlaLocation origin_lla, point_lla;
+  auto stat = LocationFrom(origin_loc, &origin_lla);
+  if (stat != Status::SUCCESS) return stat;
+  stat = LocationFrom(point_loc, &point_lla);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityViewFrom(origin_lla, point_lla, origin_vel, point_vel, out_vel);
+}
+
+template <class OriginLocType, class PointLocType,
+          class = std::enable_if_t<
+              !is_one_of_variants_types<LocationViewTypes, PointLocType>>>
+Status VelocityViewFrom(const OriginLocType& origin_loc,
+                        const PointLocType& point_loc,
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, NedVelocityView* out_vel) {
+  LlaLocation origin_lla, point_lla;
+  auto stat = LocationFrom(origin_loc, &origin_lla);
+  if (stat != Status::SUCCESS) return stat;
+  stat = LocationFrom(point_loc, &point_lla);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityViewFrom(origin_lla, point_lla, origin_vel, point_vel, out_vel);
+}
+
+template <class OriginLocType, class PointLocType,
+          class = std::enable_if_t<
+              !is_one_of_variants_types<LocationViewTypes, PointLocType>>>
+Status VelocityViewFrom(const OriginLocType& origin_loc,
+                        const PointLocType& point_loc,
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, AerVelocityView* out_vel) {
+  LlaLocation origin_lla, point_lla;
+  auto stat = LocationFrom(origin_loc, &origin_lla);
+  if (stat != Status::SUCCESS) return stat;
+  stat = LocationFrom(point_loc, &point_lla);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityViewFrom(origin_lla, point_lla, origin_vel, point_vel, out_vel);
+}
+
+template <class OriginLocType, class PointLocType,
+          class = std::enable_if_t<
+              !is_one_of_variants_types<LocationViewTypes, PointLocType>>>
+Status VelocityFrom(const OriginLocType& origin_loc,
+                    const PointLocType& point_loc, const EcefVelocity& origin_vel,
+                    const EcefVelocityView& view_vel, EcefVelocity* out_vel) {
+  LlaLocation origin_lla, point_lla;
+  auto stat = LocationFrom(origin_loc, &origin_lla);
+  if (stat != Status::SUCCESS) return stat;
+  stat = LocationFrom(point_loc, &point_lla);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityFrom(origin_lla, point_lla, origin_vel, view_vel, out_vel);
+}
+
+template <class OriginLocType, class PointLocType,
+          class = std::enable_if_t<
+              !is_one_of_variants_types<LocationViewTypes, PointLocType>>>
+Status VelocityFrom(const OriginLocType& origin_loc,
+                    const PointLocType& point_loc, const EcefVelocity& origin_vel,
+                    const NedVelocityView& view_vel, EcefVelocity* out_vel) {
+  LlaLocation origin_lla, point_lla;
+  auto stat = LocationFrom(origin_loc, &origin_lla);
+  if (stat != Status::SUCCESS) return stat;
+  stat = LocationFrom(point_loc, &point_lla);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityFrom(origin_lla, point_lla, origin_vel, view_vel, out_vel);
+}
+
+template <class OriginLocType, class PointLocType,
+          class = std::enable_if_t<
+              !is_one_of_variants_types<LocationViewTypes, PointLocType>>>
+Status VelocityFrom(const OriginLocType& origin_loc,
+                    const PointLocType& point_loc, const EcefVelocity& origin_vel,
+                    const AerVelocityView& view_vel, EcefVelocity* out_vel) {
+  LlaLocation origin_lla, point_lla;
+  auto stat = LocationFrom(origin_loc, &origin_lla);
+  if (stat != Status::SUCCESS) return stat;
+  stat = LocationFrom(point_loc, &point_lla);
+  if (stat != Status::SUCCESS) return stat;
+  return VelocityFrom(origin_lla, point_lla, origin_vel, view_vel, out_vel);
+}
+
+// LocationView overloads — origin_loc + a LocationView encoding the relative
+// position of the point. Delegates to the two-location form after reconstructing
+// point_lla via LocationFrom(origin_loc, point_loc, &point_lla).
+template <class LocViewType, class VelViewOutType,
+          class = std::enable_if_t<
+              is_one_of_variants_types<LocationViewTypes, LocViewType>>,
+          class = std::enable_if_t<
+              is_one_of_variants_types<VelocityViewTypes, VelViewOutType>>>
 Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const NedVelocity& origin,
-                        const AerVelocity& point, AerVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const NedVelocity& origin,
-                        const EcefVelocity& point, AerVelocityView* out);
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const NedVelocity& origin,
-                        const NedVelocity& point, AerVelocityView* out);
-
-// Two-location AerVelocityView VelocityFrom — origin velocity is converted to
-// AerVelocity, the view is added, then the result is converted to the output
-// type.
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const AerVelocity& origin, const AerVelocityView& view,
-                    AerVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const AerVelocity& origin, const AerVelocityView& view,
-                    EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const AerVelocity& origin, const AerVelocityView& view,
-                    NedVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const AerVelocityView& view,
-                    AerVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const AerVelocityView& view,
-                    EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const AerVelocityView& view,
-                    NedVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const AerVelocityView& view,
-                    AerVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const AerVelocityView& view,
-                    EcefVelocity* out);
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const AerVelocityView& view,
-                    NedVelocity* out);
-
-// LocType overloads — convert any location type to LlaLocation, then call the
-// specific overload above.
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const EcefVelocity& origin,
-                        const EcefVelocity& point, EcefVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
+                        const LocViewType& point_loc,
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, VelViewOutType* out_vel) {
+  LlaLocation point_lla;
+  auto stat = LocationFrom(origin_loc, point_loc, &point_lla);
   if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
+  return VelocityViewFrom(origin_loc, point_lla, origin_vel, point_vel, out_vel);
 }
 
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const EcefVelocity& origin,
-                        const NedVelocity& point, EcefVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
+template <class LocViewType, class VelViewType,
+          class = std::enable_if_t<
+              is_one_of_variants_types<LocationViewTypes, LocViewType>>,
+          class = std::enable_if_t<
+              is_one_of_variants_types<VelocityViewTypes, VelViewType>>>
+Status VelocityFrom(const LlaLocation& origin_loc, const LocViewType& point_loc,
+                    const EcefVelocity& origin_vel, const VelViewType& view_vel,
+                    EcefVelocity* out_vel) {
+  LlaLocation point_lla;
+  auto stat = LocationFrom(origin_loc, point_loc, &point_lla);
   if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
+  return VelocityFrom(origin_loc, point_lla, origin_vel, view_vel, out_vel);
 }
 
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const NedVelocity& origin,
-                        const EcefVelocity& point, EcefVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
-}
-
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const NedVelocity& origin,
-                        const NedVelocity& point, EcefVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
-}
-
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const EcefVelocity& origin,
-                        const EcefVelocity& point, NedVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
-}
-
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const NedVelocity& origin,
-                        const NedVelocity& point, NedVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
-}
-
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const EcefVelocity& origin,
-                        const NedVelocity& point, NedVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
-}
-
-template <class LocType>
-Status VelocityViewFrom(const LocType& loc, const NedVelocity& origin,
-                        const EcefVelocity& point, NedVelocityView* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(lla, origin, point, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const EcefVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const EcefVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const NedVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-template <class LocType>
-Status VelocityFrom(const LocType& loc, const NedVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out) {
-  LlaLocation lla;
-  auto stat = LocationFrom(loc, &lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(lla, origin, view, out);
-}
-
-// Two-location LocType overloads.
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const EcefVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const EcefVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const NedVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const NedVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-// Two-location AerVelocityView LocType templates.
-template <class OriginLocType, class PointLocType>
+// OriginLocType + LocationView overloads — convert origin to LlaLocation, then
+// delegate to the LlaLocation + LocationView form.
+template <class OriginLocType, class LocViewType, class VelViewOutType,
+          class = std::enable_if_t<
+              is_one_of_variants_types<LocationViewTypes, LocViewType>>,
+          class = std::enable_if_t<
+              is_one_of_variants_types<VelocityViewTypes, VelViewOutType>>>
 Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const AerVelocity& origin, const AerVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
+                        const LocViewType& point_loc,
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, VelViewOutType* out_vel) {
+  LlaLocation origin_lla;
   auto stat = LocationFrom(origin_loc, &origin_lla);
   if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
+  return VelocityViewFrom(origin_lla, point_loc, origin_vel, point_vel, out_vel);
 }
 
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const AerVelocity& origin, const EcefVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
+template <class OriginLocType, class LocViewType, class VelViewType,
+          class = std::enable_if_t<
+              is_one_of_variants_types<LocationViewTypes, LocViewType>>,
+          class = std::enable_if_t<
+              is_one_of_variants_types<VelocityViewTypes, VelViewType>>>
+Status VelocityFrom(const OriginLocType& origin_loc, const LocViewType& point_loc,
+                    const EcefVelocity& origin_vel, const VelViewType& view_vel,
+                    EcefVelocity* out_vel) {
+  LlaLocation origin_lla;
   auto stat = LocationFrom(origin_loc, &origin_lla);
   if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
+  return VelocityFrom(origin_lla, point_loc, origin_vel, view_vel, out_vel);
 }
 
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const AerVelocity& origin, const NedVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const EcefVelocity& origin, const AerVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const EcefVelocity& origin, const EcefVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const EcefVelocity& origin, const NedVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const NedVelocity& origin, const AerVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const NedVelocity& origin, const EcefVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityViewFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc,
-                        const NedVelocity& origin, const NedVelocity& point,
-                        AerVelocityView* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(origin_lla, point_lla, origin, point, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const AerVelocity& origin,
-                    const AerVelocityView& view, AerVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const AerVelocity& origin,
-                    const AerVelocityView& view, EcefVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const AerVelocity& origin,
-                    const AerVelocityView& view, NedVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const EcefVelocity& origin,
-                    const AerVelocityView& view, AerVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const EcefVelocity& origin,
-                    const AerVelocityView& view, EcefVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const EcefVelocity& origin,
-                    const AerVelocityView& view, NedVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const NedVelocity& origin,
-                    const AerVelocityView& view, AerVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const NedVelocity& origin,
-                    const AerVelocityView& view, EcefVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-template <class OriginLocType, class PointLocType>
-Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const NedVelocity& origin,
-                    const AerVelocityView& view, NedVelocity* out) {
-  LlaLocation origin_lla, point_lla;
-  auto stat = LocationFrom(origin_loc, &origin_lla);
-  if (stat != Status::SUCCESS) return stat;
-  stat = LocationFrom(point_loc, &point_lla);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_lla, point_lla, origin, view, out);
-}
-
-// Throwing variant — two locations.
-template <class OutVelType, class OriginType, class ViewType,
+// Throwing wrapper — two locations (also covers LocationView as second arg).
+template <class OutVelType, class OriginVelType, class ViewVelType,
           class OriginLocType, class PointLocType>
 OutVelType VelocityFrom(const OriginLocType& origin_loc,
-                        const PointLocType& point_loc, const OriginType& origin,
-                        const ViewType& view) {
-  OutVelType out;
-  auto status = VelocityFrom(origin_loc, point_loc, origin, view, &out);
+                        const PointLocType& point_loc,
+                        const OriginVelType& origin_vel,
+                        const ViewVelType& view_vel) {
+  OutVelType out_vel;
+  auto status = VelocityFrom(origin_loc, point_loc, origin_vel, view_vel, &out_vel);
 
   if (status == Status::ERROR)
     throw std::invalid_argument("ERROR in VelocityFrom.");
 
-  return out;
+  return out_vel;
 }
 
-// Variant dispatch — two locations.
+// Throwing variant — two locations (also covers LocationView as second arg).
+template <class OutViewVelType, class OriginVelType, class PointVelType,
+          class OriginLocType, class PointLocType>
+OutViewVelType VelocityViewFrom(const OriginLocType& origin_loc,
+                                const PointLocType& point_loc,
+                                const OriginVelType& origin_vel,
+                                const PointVelType& point_vel) {
+  OutViewVelType out_vel;
+  auto status =
+      VelocityViewFrom(origin_loc, point_loc, origin_vel, point_vel, &out_vel);
+
+  if (status == Status::ERROR)
+    throw std::invalid_argument("ERROR in VelocityViewFrom.");
+
+  return out_vel;
+}
+
+// Variant dispatch — two locations, VelocityViewFrom.
+template <class ViewVelType, class OriginLocType, class PointLocType,
+          class = std::enable_if_t<
+              is_one_of_variants_types<VelocityViewTypes, ViewVelType>>>
+Status VelocityViewFrom(const OriginLocType& origin_loc,
+                        const PointLocType& point_loc,
+                        const VelocityTypes& origin_vel,
+                        const VelocityTypes& point_vel, ViewVelType* out_vel) {
+  Status status = Status::SUCCESS;
+  std::visit(
+      overloaded{[&status, &point_vel, &origin_loc, &point_loc,
+                  out_vel](const auto& orig_vel) {
+        std::visit(
+            overloaded{[&status, &orig_vel, &origin_loc, &point_loc,
+                         out_vel](const auto& pt_vel) {
+              status =
+                  VelocityViewFrom(origin_loc, point_loc, orig_vel, pt_vel, out_vel);
+            }},
+            point_vel);
+      }},
+      origin_vel);
+  return status;
+}
+
+// Variant dispatch — two locations, VelocityFrom.
 template <
     class VelType, class OriginLocType, class PointLocType,
     class = std::enable_if_t<is_one_of_variants_types<VelocityTypes, VelType>>>
 Status VelocityFrom(const OriginLocType& origin_loc,
-                    const PointLocType& point_loc, const VelocityTypes& origin,
-                    const VelocityViewTypes& view_variant, VelType* out) {
+                    const PointLocType& point_loc,
+                    const VelocityTypes& origin_vel,
+                    const VelocityViewTypes& view_vel, VelType* out_vel) {
   Status status = Status::SUCCESS;
   std::visit(
       overloaded{
-          [&status, &view_variant, &origin_loc, &point_loc,
-           out](const auto& orig) {
+          [&status, &view_vel, &origin_loc, &point_loc,
+           out_vel](const auto& orig_vel) {
             std::visit(
                 overloaded{
-                    [&status, &orig, &origin_loc, &point_loc,
-                     out](const auto& view) {
-                      status =
-                          VelocityFrom(origin_loc, point_loc, orig, view, out);
+                    [&status, &orig_vel, &origin_loc, &point_loc,
+                     out_vel](const auto& vw_vel) {
+                      status = VelocityFrom(origin_loc, point_loc, orig_vel,
+                                            vw_vel, out_vel);
                     },
                 },
-                view_variant);
+                view_vel);
           },
       },
-      origin);
+      origin_vel);
   return status;
 }
 
-// Throwing variants — with location.
-template <class OutViewType, class OriginType, class PointType,
-          class OriginLocType, class PointLocType>
-OutViewType VelocityViewFrom(const OriginLocType& origin_loc,
-                             const PointLocType& point_loc,
-                             const OriginType& origin, const PointType& point) {
-  OutViewType out;
-  auto status = VelocityViewFrom(origin_loc, point_loc, origin, point, &out);
-
-  if (status == Status::ERROR)
-    throw std::invalid_argument("ERROR in VelocityViewFrom.");
-
-  return out;
-}
-
-template <class OutViewType, class OriginType, class PointType, class LocType>
-OutViewType VelocityViewFrom(const LocType& loc, const OriginType& origin,
-                             const PointType& point) {
-  OutViewType out;
-  auto status = VelocityViewFrom(loc, origin, point, &out);
-
-  if (status == Status::ERROR)
-    throw std::invalid_argument("ERROR in VelocityViewFrom.");
-
-  return out;
-}
-
-template <class OutVelType, class OriginType, class ViewType, class LocType>
-OutVelType VelocityFrom(const LocType& loc, const OriginType& origin,
-                        const ViewType& view) {
-  OutVelType out;
-  auto status = VelocityFrom(loc, origin, view, &out);
-
-  if (status == Status::ERROR)
-    throw std::invalid_argument("ERROR in VelocityFrom.");
-
-  return out;
-}
-
-// Variant dispatch — with location.
-template <class ViewType, class LocType,
+// Variant dispatch — LocationViewTypes as point_loc.
+template <class ViewVelType, class OriginLocType,
           class = std::enable_if_t<
-              is_one_of_variants_types<VelocityViewTypes, ViewType>>>
-Status VelocityViewFrom(const LocType& loc, const VelocityTypes& origin,
-                        const VelocityTypes& point, ViewType* out) {
+              is_one_of_variants_types<VelocityViewTypes, ViewVelType>>>
+Status VelocityViewFrom(const OriginLocType& origin_loc,
+                        const LocationViewTypes& point_loc,
+                        const VelocityTypes& origin_vel,
+                        const VelocityTypes& point_vel, ViewVelType* out_vel) {
   Status status = Status::SUCCESS;
   std::visit(
-      overloaded{
-          [&status, &point, &loc, out](const auto& orig) {
-            std::visit(
-                overloaded{
-                    [&status, &orig, &loc, out](const auto& pt) {
-                      status = VelocityViewFrom(loc, orig, pt, out);
-                    },
-                },
-                point);
-          },
-      },
-      origin);
+      overloaded{[&status, &origin_loc, &origin_vel, &point_vel,
+                  out_vel](const auto& pt_loc) {
+        std::visit(
+            overloaded{[&status, &origin_loc, &pt_loc, &point_vel,
+                         out_vel](const auto& orig_vel) {
+              std::visit(
+                  overloaded{[&status, &origin_loc, &pt_loc, &orig_vel,
+                               out_vel](const auto& pt_vel) {
+                    status = VelocityViewFrom(origin_loc, pt_loc, orig_vel,
+                                             pt_vel, out_vel);
+                  }},
+                  point_vel);
+            }},
+            origin_vel);
+      }},
+      point_loc);
   return status;
 }
 
 template <
-    class VelType, class LocType,
+    class VelType, class OriginLocType,
     class = std::enable_if_t<is_one_of_variants_types<VelocityTypes, VelType>>>
-Status VelocityFrom(const LocType& loc, const VelocityTypes& origin,
-                    const VelocityViewTypes& view_variant, VelType* out) {
+Status VelocityFrom(const OriginLocType& origin_loc,
+                    const LocationViewTypes& point_loc,
+                    const VelocityTypes& origin_vel,
+                    const VelocityViewTypes& view_vel, VelType* out_vel) {
   Status status = Status::SUCCESS;
   std::visit(
-      overloaded{
-          [&status, &view_variant, &loc, out](const auto& orig) {
-            std::visit(
-                overloaded{
-                    [&status, &orig, &loc, out](const auto& view) {
-                      status = VelocityFrom(loc, orig, view, out);
-                    },
-                },
-                view_variant);
-          },
-      },
-      origin);
+      overloaded{[&status, &origin_loc, &origin_vel, &view_vel,
+                  out_vel](const auto& pt_loc) {
+        std::visit(
+            overloaded{[&status, &origin_loc, &pt_loc, &view_vel,
+                         out_vel](const auto& orig_vel) {
+              std::visit(
+                  overloaded{[&status, &origin_loc, &pt_loc, &orig_vel,
+                               out_vel](const auto& vw_vel) {
+                    status =
+                        VelocityFrom(origin_loc, pt_loc, orig_vel, vw_vel, out_vel);
+                  }},
+                  view_vel);
+            }},
+            origin_vel);
+      }},
+      point_loc);
   return status;
 }
 

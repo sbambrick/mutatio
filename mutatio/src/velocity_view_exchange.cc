@@ -1,460 +1,217 @@
 #include "mutatio/velocity_view_exchange.h"
 
+#include <cmath>
+#include <limits>
+
+#include "GeographicLib/Constants.hpp"
+
+#include "mutatio/location_view_exchange.h"
 #include "mutatio/velocity_exchange.h"
 
 namespace mutatio {
 
-Status VelocityViewFrom(const LlaLocation&, const EcefVelocity& origin,
-                        const EcefVelocity& point, EcefVelocityView* out) {
-  *out = EcefVelocityView{point.vx - origin.vx, point.vy - origin.vy,
-                          point.vz - origin.vz};
+namespace {
+
+// Internal intermediate types used for NED/AER computations.
+struct NedVel {
+  double vnorth, veast, vdown;
+};
+struct AerVel {
+  double vazimuth, velevation, vrange;
+};
+
+// Rotates an EcefVelocity into the NED frame at loc.
+Status EcefToNed(const LlaLocation& loc, const EcefVelocity& in, NedVel* out) {
+  const auto deg     = GeographicLib::Constants::degree();
+  const auto sin_lat = std::sin(loc.lat * deg);
+  const auto cos_lat = std::cos(loc.lat * deg);
+  const auto sin_lon = std::sin(loc.lon * deg);
+  const auto cos_lon = std::cos(loc.lon * deg);
+  *out = NedVel{
+      -sin_lat * cos_lon * in.vx - sin_lat * sin_lon * in.vy + cos_lat * in.vz,
+      -sin_lon * in.vx + cos_lon * in.vy,
+      -cos_lat * cos_lon * in.vx - cos_lat * sin_lon * in.vy - sin_lat * in.vz,
+  };
   return Status::SUCCESS;
 }
 
-// The location is accepted for API consistency but not used.
-Status VelocityFrom(const LlaLocation&, const EcefVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out) {
-  *out = EcefVelocity{origin.vx + view.vx, origin.vy + view.vy,
-                      origin.vz + view.vz};
+// Rotates a NedVel back into the ECEF frame (transpose of EcefToNed).
+Status NedToEcef(const LlaLocation& loc, const NedVel& in, EcefVelocity* out) {
+  const auto deg     = GeographicLib::Constants::degree();
+  const auto sin_lat = std::sin(loc.lat * deg);
+  const auto cos_lat = std::cos(loc.lat * deg);
+  const auto sin_lon = std::sin(loc.lon * deg);
+  const auto cos_lon = std::cos(loc.lon * deg);
+  *out = EcefVelocity{
+      -sin_lat * cos_lon * in.vnorth - sin_lon * in.veast -
+          cos_lat * cos_lon * in.vdown,
+      -sin_lat * sin_lon * in.vnorth + cos_lon * in.veast -
+          cos_lat * sin_lon * in.vdown,
+      cos_lat * in.vnorth - sin_lat * in.vdown,
+  };
   return Status::SUCCESS;
 }
 
-// Cross-type EcefVelocityView: convert NED to ECEF, then subtract in ECEF.
-Status VelocityViewFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                        const NedVelocity& point, EcefVelocityView* out) {
-  EcefVelocity ecef_point;
-  auto stat = VelocityFrom(loc, point, &ecef_point);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(loc, origin, ecef_point, out);
-}
+// AER-to-NED Jacobian: converts AerVel at a given AER position to NedVel.
+Status AerToNed(const AerLocationView& pos, const AerVel& in, NedVel* out) {
+  const auto deg    = GeographicLib::Constants::degree();
+  const auto vel_az = in.vazimuth * deg;
+  const auto vel_el = in.velevation * deg;
 
-Status VelocityViewFrom(const LlaLocation& loc, const NedVelocity& origin,
-                        const EcefVelocity& point, EcefVelocityView* out) {
-  EcefVelocity ecef_origin;
-  auto stat = VelocityFrom(loc, origin, &ecef_origin);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(loc, ecef_origin, point, out);
-}
+  const auto cos_az = std::cos(pos.azimuth * deg);
+  const auto sin_az = std::sin(pos.azimuth * deg);
+  const auto cos_el = std::cos(pos.elevation * deg);
+  const auto sin_el = std::sin(pos.elevation * deg);
 
-Status VelocityViewFrom(const LlaLocation& loc, const NedVelocity& origin,
-                        const NedVelocity& point, EcefVelocityView* out) {
-  EcefVelocity ecef_origin, ecef_point;
-  auto stat = VelocityFrom(loc, origin, &ecef_origin);
-  if (stat != Status::SUCCESS) return stat;
-  stat = VelocityFrom(loc, point, &ecef_point);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(loc, ecef_origin, ecef_point, out);
-}
-
-// Cross-type NedVelocityView: convert NED to ECEF, then use the ECEF+ECEF path.
-Status VelocityViewFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                        const NedVelocity& point, NedVelocityView* out) {
-  EcefVelocity ecef_point;
-  auto stat = VelocityFrom(loc, point, &ecef_point);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(loc, origin, ecef_point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& loc, const NedVelocity& origin,
-                        const EcefVelocity& point, NedVelocityView* out) {
-  EcefVelocity ecef_origin;
-  auto stat = VelocityFrom(loc, origin, &ecef_origin);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityViewFrom(loc, ecef_origin, point, out);
-}
-
-// Computes the ECEF velocity difference and rotates it into the NED frame at
-// the given location.
-Status VelocityViewFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                        const EcefVelocity& point, NedVelocityView* out) {
-  const EcefVelocity diff{point.vx - origin.vx, point.vy - origin.vy,
-                          point.vz - origin.vz};
-  NedVelocity ned_diff;
-  auto stat = VelocityFrom(loc, diff, &ned_diff);
-  if (stat != Status::SUCCESS) return stat;
-  *out = NedVelocityView{ned_diff.vnorth, ned_diff.veast, ned_diff.vdown};
+  *out = NedVel{
+      cos_el * cos_az * in.vrange - pos.range * sin_el * cos_az * vel_el -
+          pos.range * cos_el * sin_az * vel_az,
+      cos_el * sin_az * in.vrange - pos.range * sin_el * sin_az * vel_el +
+          pos.range * cos_el * cos_az * vel_az,
+      -sin_el * in.vrange - pos.range * cos_el * vel_el,
+  };
   return Status::SUCCESS;
 }
 
-// Both velocities are already in the NED frame, so the view is their
-// difference. The location is accepted for API consistency but not used.
-Status VelocityViewFrom(const LlaLocation&, const NedVelocity& origin,
-                        const NedVelocity& point, NedVelocityView* out) {
-  *out =
-      NedVelocityView{point.vnorth - origin.vnorth, point.veast - origin.veast,
-                      point.vdown - origin.vdown};
+// NED-to-AER inverse Jacobian. Returns ERROR on singularity (r ≈ 0 or el ≈ ±90°).
+Status NedToAer(const AerLocationView& pos, const NedVel& in, AerVel* out) {
+  const auto deg     = GeographicLib::Constants::degree();
+  const auto cos_az  = std::cos(pos.azimuth * deg);
+  const auto sin_az  = std::sin(pos.azimuth * deg);
+  const auto cos_el  = std::cos(pos.elevation * deg);
+  const auto sin_el  = std::sin(pos.elevation * deg);
+  const auto epsilon = std::numeric_limits<double>::epsilon() * 1e6;
+
+  if (pos.range < epsilon) return Status::ERROR;
+  if (std::abs(cos_el) < epsilon) return Status::ERROR;
+
+  const auto vrange = cos_el * cos_az * in.vnorth + cos_el * sin_az * in.veast -
+                      sin_el * in.vdown;
+  const auto vel_el_rad = (-sin_el * cos_az * in.vnorth -
+                           sin_el * sin_az * in.veast - cos_el * in.vdown) /
+                          pos.range;
+  const auto vel_az_rad =
+      (-sin_az * in.vnorth + cos_az * in.veast) / (pos.range * cos_el);
+
+  *out = AerVel{vel_az_rad / deg, vel_el_rad / deg, vrange};
   return Status::SUCCESS;
 }
 
-Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out) {
-  const EcefVelocity ecef_point{origin.vx + view.vx, origin.vy + view.vy,
-                                origin.vz + view.vz};
-  return VelocityFrom(loc, ecef_point, out);
+// Converts an EcefVelocity to AerVel using the two-location Jacobian.
+// ECEF → NED at origin_loc → AER.
+Status EcefToAer(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                 const EcefVelocity& in, AerVel* out) {
+  AerLocationView aer_pos;
+  auto stat = ViewFrom(origin_loc, point_loc, &aer_pos);
+  if (stat != Status::SUCCESS) return stat;
+
+  NedVel ned;
+  stat = EcefToNed(origin_loc, in, &ned);
+  if (stat != Status::SUCCESS) return stat;
+
+  return NedToAer(aer_pos, ned, out);
 }
 
-Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out) {
-  EcefVelocity ecef_point;
-  auto stat = VelocityFrom(loc, origin, view, &ecef_point);
+// Converts an AerVel to EcefVelocity using the two-location Jacobian.
+// AER → NED at origin_loc → ECEF.
+Status AerToEcef(const LlaLocation& origin_loc, const LlaLocation& point_loc,
+                 const AerVel& in, EcefVelocity* out) {
+  AerLocationView aer_pos;
+  auto stat = ViewFrom(origin_loc, point_loc, &aer_pos);
   if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(loc, ecef_point, out);
+
+  NedVel ned;
+  stat = AerToNed(aer_pos, in, &ned);
+  if (stat != Status::SUCCESS) return stat;
+
+  return NedToEcef(origin_loc, ned, out);
 }
 
-Status VelocityFrom(const LlaLocation& loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, EcefVelocity* out) {
-  EcefVelocity ecef_origin;
-  auto stat = VelocityFrom(loc, origin, &ecef_origin);
-  if (stat != Status::SUCCESS) return stat;
-  *out = EcefVelocity{ecef_origin.vx + view.vx, ecef_origin.vy + view.vy,
-                      ecef_origin.vz + view.vz};
+// Rotates a NedVelocityView into the ECEF frame.
+Status NedViewToEcef(const LlaLocation& loc, const NedVelocityView& in,
+                     EcefVelocity* out) {
+  return NedToEcef(loc, NedVel{in.vnorth, in.veast, in.vdown}, out);
+}
+
+}  // namespace
+
+// Two-location VelocityViewFrom — EcefVelocityView: both locations unused.
+Status VelocityViewFrom(const LlaLocation&, const LlaLocation&,
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, EcefVelocityView* out_vel) {
+  *out_vel = EcefVelocityView{point_vel.vx - origin_vel.vx,
+                              point_vel.vy - origin_vel.vy,
+                              point_vel.vz - origin_vel.vz};
   return Status::SUCCESS;
 }
 
-Status VelocityFrom(const LlaLocation& loc, const NedVelocity& origin,
-                    const EcefVelocityView& view, NedVelocity* out) {
-  EcefVelocity ecef_point;
-  auto stat = VelocityFrom(loc, origin, view, &ecef_point);
+// Two-location VelocityViewFrom — NedVelocityView: origin_loc defines the NED
+// frame; point_loc unused.
+Status VelocityViewFrom(const LlaLocation& origin_loc, const LlaLocation&,
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, NedVelocityView* out_vel) {
+  const EcefVelocity diff{point_vel.vx - origin_vel.vx,
+                          point_vel.vy - origin_vel.vy,
+                          point_vel.vz - origin_vel.vz};
+  NedVel ned;
+  auto stat = EcefToNed(origin_loc, diff, &ned);
   if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(loc, ecef_point, out);
-}
-
-Status VelocityFrom(const LlaLocation& loc, const NedVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out) {
-  NedVelocity ned_point;
-  auto stat = VelocityFrom(loc, origin, view, &ned_point);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(loc, ned_point, out);
-}
-
-// Rotates the NED view into the ECEF frame and applies it to the origin.
-Status VelocityFrom(const LlaLocation& loc, const EcefVelocity& origin,
-                    const NedVelocityView& view, EcefVelocity* out) {
-  const NedVelocity ned_view{view.vnorth, view.veast, view.vdown};
-  EcefVelocity ecef_diff;
-  auto stat = VelocityFrom(loc, ned_view, &ecef_diff);
-  if (stat != Status::SUCCESS) return stat;
-  *out = EcefVelocity{origin.vx + ecef_diff.vx, origin.vy + ecef_diff.vy,
-                      origin.vz + ecef_diff.vz};
-  return Status::SUCCESS;
-}
-
-// Both origin and view are in the NED frame; the result is their sum.
-// The location is accepted for API consistency but not used.
-Status VelocityFrom(const LlaLocation&, const NedVelocity& origin,
-                    const NedVelocityView& view, NedVelocity* out) {
-  *out = NedVelocity{origin.vnorth + view.vnorth, origin.veast + view.veast,
-                     origin.vdown + view.vdown};
+  *out_vel = NedVelocityView{ned.vnorth, ned.veast, ned.vdown};
   return Status::SUCCESS;
 }
 
 // Two-location VelocityFrom — all arithmetic is performed in ECEF.
 
-// No rotation needed; both locations are unused.
+// No rotation needed; both locations unused.
 Status VelocityFrom(const LlaLocation&, const LlaLocation&,
-                    const EcefVelocity& origin, const EcefVelocityView& view,
-                    EcefVelocity* out) {
-  *out = EcefVelocity{origin.vx + view.vx, origin.vy + view.vy,
-                      origin.vz + view.vz};
+                    const EcefVelocity& origin_vel,
+                    const EcefVelocityView& view_vel, EcefVelocity* out_vel) {
+  *out_vel = EcefVelocity{origin_vel.vx + view_vel.vx,
+                          origin_vel.vy + view_vel.vy,
+                          origin_vel.vz + view_vel.vz};
   return Status::SUCCESS;
 }
 
-// Add in ECEF, then rotate to NED at point_loc.
-Status VelocityFrom(const LlaLocation&, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const EcefVelocityView& view,
-                    NedVelocity* out) {
-  const EcefVelocity ecef_point{origin.vx + view.vx, origin.vy + view.vy,
-                                origin.vz + view.vz};
-  return VelocityFrom(point_loc, ecef_point, out);
-}
-
-// Rotate NED view to ECEF at origin_loc, then add.
+// Rotate NED view to ECEF at origin_loc, then add. point_loc unused.
 Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation&,
-                    const EcefVelocity& origin, const NedVelocityView& view,
-                    EcefVelocity* out) {
+                    const EcefVelocity& origin_vel,
+                    const NedVelocityView& view_vel, EcefVelocity* out_vel) {
   EcefVelocity ecef_diff;
-  auto stat = VelocityFrom(
-      origin_loc, NedVelocity{view.vnorth, view.veast, view.vdown}, &ecef_diff);
+  auto stat = NedViewToEcef(origin_loc, view_vel, &ecef_diff);
   if (stat != Status::SUCCESS) return stat;
-  *out = EcefVelocity{origin.vx + ecef_diff.vx, origin.vy + ecef_diff.vy,
-                      origin.vz + ecef_diff.vz};
+  *out_vel = EcefVelocity{origin_vel.vx + ecef_diff.vx,
+                          origin_vel.vy + ecef_diff.vy,
+                          origin_vel.vz + ecef_diff.vz};
   return Status::SUCCESS;
 }
 
-// Rotate NED view to ECEF at origin_loc, add, then rotate to NED at point_loc.
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const NedVelocityView& view,
-                    NedVelocity* out) {
-  EcefVelocity ecef_point;
-  auto stat = VelocityFrom(origin_loc, point_loc, origin, view, &ecef_point);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(point_loc, ecef_point, out);
-}
-
-// Rotate NED origin to ECEF at origin_loc, then add.
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation&,
-                    const NedVelocity& origin, const EcefVelocityView& view,
-                    EcefVelocity* out) {
-  EcefVelocity ecef_origin;
-  auto stat = VelocityFrom(origin_loc, origin, &ecef_origin);
-  if (stat != Status::SUCCESS) return stat;
-  *out = EcefVelocity{ecef_origin.vx + view.vx, ecef_origin.vy + view.vy,
-                      ecef_origin.vz + view.vz};
-  return Status::SUCCESS;
-}
-
-// Rotate NED origin to ECEF at origin_loc, add, then rotate to NED at
-// point_loc.
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const EcefVelocityView& view,
-                    NedVelocity* out) {
-  EcefVelocity ecef_point;
-  auto stat = VelocityFrom(origin_loc, point_loc, origin, view, &ecef_point);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(point_loc, ecef_point, out);
-}
-
-// Rotate NED origin and NED view to ECEF at origin_loc, then add.
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation&,
-                    const NedVelocity& origin, const NedVelocityView& view,
-                    EcefVelocity* out) {
-  EcefVelocity ecef_origin, ecef_diff;
-  auto stat = VelocityFrom(origin_loc, origin, &ecef_origin);
-  if (stat != Status::SUCCESS) return stat;
-  stat = VelocityFrom(
-      origin_loc, NedVelocity{view.vnorth, view.veast, view.vdown}, &ecef_diff);
-  if (stat != Status::SUCCESS) return stat;
-  *out =
-      EcefVelocity{ecef_origin.vx + ecef_diff.vx, ecef_origin.vy + ecef_diff.vy,
-                   ecef_origin.vz + ecef_diff.vz};
-  return Status::SUCCESS;
-}
-
-// Rotate NED origin and view to ECEF at origin_loc, add, then rotate to NED at
-// point_loc.
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const NedVelocityView& view,
-                    NedVelocity* out) {
-  EcefVelocity ecef_point;
-  auto stat = VelocityFrom(origin_loc, point_loc, origin, view, &ecef_point);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(point_loc, ecef_point, out);
-}
-
-// AerVelocityView — all arithmetic routes through AerVelocity.
-// VelocityViewFrom: convert both inputs to AerVelocity, then subtract.
-// VelocityFrom: convert origin to AerVelocity, add view, convert to output
-// type.
-
-namespace {
-
-Status ToAerVelocity(const LlaLocation& origin_loc,
-                     const LlaLocation& point_loc, const AerVelocity& in,
-                     AerVelocity* out) {
-  *out = in;
-  return Status::SUCCESS;
-}
-
-Status ToAerVelocity(const LlaLocation& origin_loc,
-                     const LlaLocation& point_loc, const EcefVelocity& in,
-                     AerVelocity* out) {
-  return VelocityFrom(origin_loc, point_loc, in, out);
-}
-
-Status ToAerVelocity(const LlaLocation& origin_loc,
-                     const LlaLocation& point_loc, const NedVelocity& in,
-                     AerVelocity* out) {
-  return VelocityFrom(origin_loc, point_loc, in, out);
-}
-
-// PointToAerVelocity: interprets the input velocity as being in the NED frame
-// at point_loc (rather than origin_loc).
-Status PointToAerVelocity(const LlaLocation& origin_loc,
-                          const LlaLocation& point_loc, const AerVelocity& in,
-                          AerVelocity* out) {
-  *out = in;
-  return Status::SUCCESS;
-}
-
-Status PointToAerVelocity(const LlaLocation& origin_loc,
-                          const LlaLocation& point_loc, const EcefVelocity& in,
-                          AerVelocity* out) {
-  return VelocityFrom(origin_loc, point_loc, in, out);
-}
-
-Status PointToAerVelocity(const LlaLocation& origin_loc,
-                          const LlaLocation& point_loc, const NedVelocity& in,
-                          AerVelocity* out) {
-  EcefVelocity ecef;
-  auto stat = VelocityFrom(point_loc, in, &ecef);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(origin_loc, point_loc, ecef, out);
-}
-
-Status FromAerVelocity(const LlaLocation& origin_loc,
-                       const LlaLocation& point_loc, const AerVelocity& in,
-                       AerVelocity* out) {
-  *out = in;
-  return Status::SUCCESS;
-}
-
-Status FromAerVelocity(const LlaLocation& origin_loc,
-                       const LlaLocation& point_loc, const AerVelocity& in,
-                       EcefVelocity* out) {
-  return VelocityFrom(origin_loc, point_loc, in, out);
-}
-
-// Output is in the NED frame at point_loc to match the two-location convention.
-Status FromAerVelocity(const LlaLocation& origin_loc,
-                       const LlaLocation& point_loc, const AerVelocity& in,
-                       NedVelocity* out) {
-  EcefVelocity ecef;
-  auto stat = VelocityFrom(origin_loc, point_loc, in, &ecef);
-  if (stat != Status::SUCCESS) return stat;
-  return VelocityFrom(point_loc, ecef, out);
-}
-
-}  // namespace
-
-template <class OrigVel, class PointVel>
-static Status VelocityViewFromAer(const LlaLocation& origin_loc,
-                                  const LlaLocation& point_loc,
-                                  const OrigVel& origin, const PointVel& point,
-                                  AerVelocityView* out) {
-  AerVelocity aer_origin, aer_point;
-  auto stat = ToAerVelocity(origin_loc, point_loc, origin, &aer_origin);
-  if (stat != Status::SUCCESS) return stat;
-  stat = PointToAerVelocity(origin_loc, point_loc, point, &aer_point);
-  if (stat != Status::SUCCESS) return stat;
-  *out = AerVelocityView{aer_point.vazimuth - aer_origin.vazimuth,
-                         aer_point.velevation - aer_origin.velevation,
-                         aer_point.vrange - aer_origin.vrange};
-  return Status::SUCCESS;
-}
-
-template <class OrigVel, class OutVel>
-static Status VelocityFromAer(const LlaLocation& origin_loc,
-                              const LlaLocation& point_loc,
-                              const OrigVel& origin,
-                              const AerVelocityView& view, OutVel* out) {
-  AerVelocity aer_origin;
-  auto stat = ToAerVelocity(origin_loc, point_loc, origin, &aer_origin);
-  if (stat != Status::SUCCESS) return stat;
-  const AerVelocity aer_point{aer_origin.vazimuth + view.vazimuth,
-                              aer_origin.velevation + view.velevation,
-                              aer_origin.vrange + view.vrange};
-  return FromAerVelocity(origin_loc, point_loc, aer_point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const AerVelocity& origin,
-                        const AerVelocity& point, AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const AerVelocity& origin,
-                        const EcefVelocity& point, AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const AerVelocity& origin,
-                        const NedVelocity& point, AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
+// AerVelocityView — arithmetic routes through AerVel.
 
 Status VelocityViewFrom(const LlaLocation& origin_loc,
                         const LlaLocation& point_loc,
-                        const EcefVelocity& origin, const AerVelocity& point,
-                        AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc,
-                        const EcefVelocity& origin, const EcefVelocity& point,
-                        AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc,
-                        const EcefVelocity& origin, const NedVelocity& point,
-                        AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const NedVelocity& origin,
-                        const AerVelocity& point, AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const NedVelocity& origin,
-                        const EcefVelocity& point, AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
-}
-
-Status VelocityViewFrom(const LlaLocation& origin_loc,
-                        const LlaLocation& point_loc, const NedVelocity& origin,
-                        const NedVelocity& point, AerVelocityView* out) {
-  return VelocityViewFromAer(origin_loc, point_loc, origin, point, out);
+                        const EcefVelocity& origin_vel,
+                        const EcefVelocity& point_vel, AerVelocityView* out_vel) {
+  AerVel aer_origin, aer_point;
+  auto stat = EcefToAer(origin_loc, point_loc, origin_vel, &aer_origin);
+  if (stat != Status::SUCCESS) return stat;
+  stat = EcefToAer(origin_loc, point_loc, point_vel, &aer_point);
+  if (stat != Status::SUCCESS) return stat;
+  *out_vel = AerVelocityView{aer_point.vazimuth - aer_origin.vazimuth,
+                             aer_point.velevation - aer_origin.velevation,
+                             aer_point.vrange - aer_origin.vrange};
+  return Status::SUCCESS;
 }
 
 Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const AerVelocity& origin, const AerVelocityView& view,
-                    AerVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const AerVelocity& origin, const AerVelocityView& view,
-                    EcefVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const AerVelocity& origin, const AerVelocityView& view,
-                    NedVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const AerVelocityView& view,
-                    AerVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const AerVelocityView& view,
-                    EcefVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const EcefVelocity& origin, const AerVelocityView& view,
-                    NedVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const AerVelocityView& view,
-                    AerVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const AerVelocityView& view,
-                    EcefVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
-}
-
-Status VelocityFrom(const LlaLocation& origin_loc, const LlaLocation& point_loc,
-                    const NedVelocity& origin, const AerVelocityView& view,
-                    NedVelocity* out) {
-  return VelocityFromAer(origin_loc, point_loc, origin, view, out);
+                    const EcefVelocity& origin_vel,
+                    const AerVelocityView& view_vel, EcefVelocity* out_vel) {
+  AerVel aer_origin;
+  auto stat = EcefToAer(origin_loc, point_loc, origin_vel, &aer_origin);
+  if (stat != Status::SUCCESS) return stat;
+  const AerVel aer_point{aer_origin.vazimuth + view_vel.vazimuth,
+                          aer_origin.velevation + view_vel.velevation,
+                          aer_origin.vrange + view_vel.vrange};
+  return AerToEcef(origin_loc, point_loc, aer_point, out_vel);
 }
 
 }  // namespace mutatio
