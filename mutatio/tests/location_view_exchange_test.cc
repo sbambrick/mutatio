@@ -391,7 +391,8 @@ TEST(LocationViewExchange, LocationFromOriginPlusEcef) {
 TEST(LocationViewExchange, LocationFromThrowingWrapper) {
   const LlaLocation origin{0.0, 0.0, 0.0};
 
-  auto result = LocationFrom<LlaLocation>(origin, AerLocationView{0.0, 0.0, 1000.0});
+  auto result =
+      LocationFrom<LlaLocation>(origin, AerLocationView{0.0, 0.0, 1000.0});
   ASSERT_GT(result.lat, 0.0);
   ASSERT_NEAR(result.lon, 0.0, 1e-9);
 

@@ -11,9 +11,10 @@ namespace mutatio {
 // EcefVelocity is frame-independent; no location is needed.
 Status VelocityFrom(const EcefVelocity& in, EcefVelocity* out);
 
-// Variant dispatch — no location needed since VelocityTypes = variant<EcefVelocity>.
-template <class VelType,
-          class = std::enable_if_t<is_one_of_variants_types<VelocityTypes, VelType>>>
+// Variant dispatch — no location needed since VelocityTypes =
+// variant<EcefVelocity>.
+template <class VelType, class = std::enable_if_t<
+                             is_one_of_variants_types<VelocityTypes, VelType>>>
 Status VelocityFrom(const VelocityTypes& in_vel, VelType* out) {
   Status status = Status::SUCCESS;
   std::visit(

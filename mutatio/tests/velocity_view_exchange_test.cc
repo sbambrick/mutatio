@@ -43,7 +43,7 @@ TEST(VelocityViewExchange, TwoLocEcefRoundTrip) {
   EcefVelocity origin{10.0, 20.0, 30.0};
   EcefVelocity point{15.0, 18.0, 35.0};
 
-  auto view          = VelocityViewFrom<EcefVelocityView>(loc, loc, origin, point);
+  auto view = VelocityViewFrom<EcefVelocityView>(loc, loc, origin, point);
   auto reconstructed = VelocityFrom<EcefVelocity>(loc, loc, origin, view);
 
   ASSERT_DOUBLE_EQ(reconstructed.vx, point.vx);
@@ -80,7 +80,7 @@ TEST(VelocityViewExchange, TwoLocNedRoundTrip) {
   const EcefVelocity origin{10.0, 20.0, 30.0};
   const EcefVelocity point{15.0, 18.0, 35.0};
 
-  auto view          = VelocityViewFrom<NedVelocityView>(loc, loc, origin, point);
+  auto view = VelocityViewFrom<NedVelocityView>(loc, loc, origin, point);
   auto reconstructed = VelocityFrom<EcefVelocity>(loc, loc, origin, view);
 
   ASSERT_DOUBLE_EQ(reconstructed.vx, point.vx);
@@ -169,9 +169,10 @@ TEST(VelocityViewExchange, EcefLocTwoLocTemplates) {
 
   // Two-loc AerVelocityView VelocityViewFrom and VelocityFrom templates.
   AerVelocityView aer_view;
-  ASSERT_EQ(VelocityViewFrom(ecef_obs, ecef_tgt, EcefVelocity{100.0, -50.0, 25.0},
-                             EcefVelocity{110.0, -48.0, 30.0}, &aer_view),
-            Status::SUCCESS);
+  ASSERT_EQ(
+      VelocityViewFrom(ecef_obs, ecef_tgt, EcefVelocity{100.0, -50.0, 25.0},
+                       EcefVelocity{110.0, -48.0, 30.0}, &aer_view),
+      Status::SUCCESS);
   ASSERT_EQ(VelocityFrom(ecef_obs, ecef_tgt, EcefVelocity{100.0, -50.0, 25.0},
                          aer_view, &ecef_out),
             Status::SUCCESS);
@@ -182,8 +183,7 @@ TEST(VelocityViewExchange, EcefLocTwoLocTemplates) {
 // result matches the direct two-location call.
 
 TEST(VelocityViewExchange, LocViewEcefVelocityView) {
-  const AerLocationView aer_loc =
-      ViewFrom<AerLocationView>(kObserver, kTarget);
+  const AerLocationView aer_loc = ViewFrom<AerLocationView>(kObserver, kTarget);
 
   const EcefVelocity origin{100.0, -50.0, 25.0};
   const EcefVelocity point{110.0, -48.0, 30.0};
@@ -201,8 +201,7 @@ TEST(VelocityViewExchange, LocViewEcefVelocityView) {
 }
 
 TEST(VelocityViewExchange, LocViewNedVelocityView) {
-  const AerLocationView aer_loc =
-      ViewFrom<AerLocationView>(kObserver, kTarget);
+  const AerLocationView aer_loc = ViewFrom<AerLocationView>(kObserver, kTarget);
 
   const EcefVelocity origin{100.0, -50.0, 25.0};
   const EcefVelocity point{110.0, -48.0, 30.0};
@@ -223,8 +222,7 @@ TEST(VelocityViewExchange, LocViewAerVelocityViewRoundTrip) {
   // Derive AerLocationView from two known locations, use it to compute an
   // AerVelocityView, then reconstruct the point velocity — must match the
   // direct two-location call.
-  const AerLocationView aer_loc =
-      ViewFrom<AerLocationView>(kObserver, kTarget);
+  const AerLocationView aer_loc = ViewFrom<AerLocationView>(kObserver, kTarget);
 
   const EcefVelocity origin{100.0, -50.0, 25.0};
   const EcefVelocity point{110.0, -48.0, 30.0};
@@ -244,16 +242,14 @@ TEST(VelocityViewExchange, LocViewAerVelocityViewRoundTrip) {
 TEST(VelocityViewExchange, LocViewMatchesTwoLoc) {
   // Verify that passing an AerLocationView derived from kObserver+kTarget
   // produces the same AerVelocityView as the direct two-location call.
-  const AerLocationView aer_loc =
-      ViewFrom<AerLocationView>(kObserver, kTarget);
+  const AerLocationView aer_loc = ViewFrom<AerLocationView>(kObserver, kTarget);
 
   const EcefVelocity origin{100.0, -50.0, 25.0};
   const EcefVelocity point{110.0, -48.0, 30.0};
 
   AerVelocityView two_loc_view, loc_view_view;
-  ASSERT_EQ(
-      VelocityViewFrom(kObserver, kTarget, origin, point, &two_loc_view),
-      Status::SUCCESS);
+  ASSERT_EQ(VelocityViewFrom(kObserver, kTarget, origin, point, &two_loc_view),
+            Status::SUCCESS);
   ASSERT_EQ(VelocityViewFrom(kObserver, aer_loc, origin, point, &loc_view_view),
             Status::SUCCESS);
 
