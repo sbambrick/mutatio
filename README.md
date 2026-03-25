@@ -227,9 +227,15 @@ target_link_libraries(my_target PRIVATE mutatio::mutatio)
 
 **CMake + Conan:**
 ```bash
-conan build . --build=missing
-cmake --build build/Release --target coverage
-cmake --build build/Release --target format
+conan build . --build=missing                    # install deps + generate toolchain
+
+cmake --preset conan-release -DENABLE_TESTING=ON # reconfigure with tests enabled
+cmake --build build/Release --target test        # build and run tests
+
+cmake --preset conan-release -DENABLE_TESTING=ON -DENABLE_COVERAGE=ON  # enable coverage
+cmake --build build/Release --target coverage    # generate coverage report
+
+cmake --build build/Release --target format      # format sources
 ```
 
 **Bazel:**
