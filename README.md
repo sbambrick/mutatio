@@ -207,6 +207,22 @@ EcefVelocity ecef_out;
 stat = VelocityFrom(origin_loc, point_loc, any_origin, any_vel_view, &ecef_out);
 ```
 
+## Installation
+
+### Conan (recommended)
+
+```bash
+conan install --requires="mutatio/0.1.0" --build=missing
+```
+
+Then in your `CMakeLists.txt`:
+
+```cmake
+find_package(mutatio REQUIRED)
+target_link_libraries(my_target PRIVATE mutatio::mutatio)
+```
+
+
 ## Quick Start
 
 **CMake + Conan:**
@@ -222,4 +238,9 @@ bazel test //mutatio:all_tests                       # run all tests
 bazel test //mutatio:location_exchange_test          # run one test
 bazel run //:format                                  # format sources
 bazel run //:check_format                            # check formatting
+```
+
+**Create and test the Conan package locally:**
+```bash
+conan create . --build=missing
 ```
