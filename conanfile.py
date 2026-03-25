@@ -45,17 +45,15 @@ class MutatioConan(ConanFile):
 
     def export_sources(self):
         copy(self, "CMakeLists.txt", self.recipe_folder, self.export_sources_folder)
-        copy(self, "cmake/*", self.recipe_folder, self.export_sources_folder)
-        copy(self, "mutatio/CMakeLists.txt", self.recipe_folder, self.export_sources_folder)
         copy(self, "mutatio/src/*", self.recipe_folder, self.export_sources_folder)
         copy(self, "mutatio/include/**", self.recipe_folder, self.export_sources_folder)
         copy(self, "LICENSE", self.recipe_folder, self.export_sources_folder)
 
     def generate(self):
         tc = CMakeToolchain(self)
-        tc.cache_variables["ENABLE_TESTING"] = False
-        tc.cache_variables["ENABLE_COVERAGE"] = False
-        tc.cache_variables["ENABLE_ASAN"] = False
+        tc.cache_variables["MUTATIO_ENABLE_TESTING"] = False
+        tc.cache_variables["MUTATIO_ENABLE_COVERAGE"] = False
+        tc.cache_variables["MUTATIO_ENABLE_ASAN"] = False
         tc.generate()
 
     def build(self):
