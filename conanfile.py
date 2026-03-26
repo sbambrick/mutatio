@@ -1,7 +1,8 @@
+import os
+
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
 from conan.tools.files import copy
-import os
 
 
 class MutatioConan(ConanFile):
@@ -10,8 +11,12 @@ class MutatioConan(ConanFile):
     license = "MIT"
     url = "https://github.com/conan-io/conan-center-index"
     homepage = "https://github.com/stbambrick/mutatio"
-    description = "Type-safe C++17 library for geographic coordinate conversions (WGS84)"
-    topics = ("geodesy", "coordinates", "wgs84", "ecef", "lla", "ned", "geography")
+    description = (
+        "Type-safe C++17 library for geographic coordinate conversions (WGS84)"
+    )
+    topics = (
+        "geodesy", "coordinates", "wgs84", "ecef", "lla", "ned", "geography"
+    )
     package_type = "library"
 
     settings = "os", "compiler", "build_type", "arch"
@@ -44,10 +49,14 @@ class MutatioConan(ConanFile):
         self.test_requires("gtest/[^1.15]")
 
     def export_sources(self):
-        copy(self, "CMakeLists.txt", self.recipe_folder, self.export_sources_folder)
-        copy(self, "mutatio/src/*", self.recipe_folder, self.export_sources_folder)
-        copy(self, "mutatio/include/**", self.recipe_folder, self.export_sources_folder)
-        copy(self, "LICENSE", self.recipe_folder, self.export_sources_folder)
+        copy(self, "CMakeLists.txt",
+             self.recipe_folder, self.export_sources_folder)
+        copy(self, "mutatio/src/*",
+             self.recipe_folder, self.export_sources_folder)
+        copy(self, "mutatio/include/**",
+             self.recipe_folder, self.export_sources_folder)
+        copy(self, "LICENSE",
+             self.recipe_folder, self.export_sources_folder)
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -62,7 +71,8 @@ class MutatioConan(ConanFile):
         cmake.build()
 
     def package(self):
-        copy(self, "LICENSE", self.source_folder, os.path.join(self.package_folder, "licenses"))
+        copy(self, "LICENSE", self.source_folder,
+             os.path.join(self.package_folder, "licenses"))
         cmake = CMake(self)
         cmake.install()
 
