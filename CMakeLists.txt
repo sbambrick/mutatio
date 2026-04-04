@@ -70,17 +70,21 @@ install(DIRECTORY mutatio/include/
 
 # ── Format ────────────────────────────────────────────────────────────────────
 
-add_custom_target(format
-  COMMAND clang-format -i ${MUTATIO_SOURCES} ${MUTATIO_HEADERS}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMENT "Running clang-format"
-)
+if(NOT TARGET format)
+  add_custom_target(format
+    COMMAND clang-format -i ${MUTATIO_SOURCES} ${MUTATIO_HEADERS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Running clang-format"
+  )
+endif()
 
-add_custom_target(check_format
-  COMMAND clang-format --dry-run --Werror ${MUTATIO_SOURCES} ${MUTATIO_HEADERS}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMENT "Checking clang-format"
-)
+if(NOT TARGET check_format)
+  add_custom_target(check_format
+    COMMAND clang-format --dry-run --Werror ${MUTATIO_SOURCES} ${MUTATIO_HEADERS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Checking clang-format"
+  )
+endif()
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -93,22 +97,26 @@ if(MUTATIO_ENABLE_TESTING)
   )
   target_link_libraries(mutatio_test_bin PUBLIC mutatio gtest::gtest)
 
-  add_custom_target(test
-    COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
-    COMMAND $<TARGET_FILE:mutatio_test_bin>
-    DEPENDS mutatio_test_bin
-    COMMENT "Running tests"
-  )
+  if(NOT TARGET test)
+    add_custom_target(test
+      COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
+      COMMAND $<TARGET_FILE:mutatio_test_bin>
+      DEPENDS mutatio_test_bin
+      COMMENT "Running tests"
+    )
+  endif()
 endif()
 
 # ── Coverage ──────────────────────────────────────────────────────────────────
 
 if(MUTATIO_ENABLE_COVERAGE)
-  add_custom_target(coverage
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/coverage
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/coverage.sh ${CMAKE_BINARY_DIR}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Generating coverage report"
-  )
+  if(NOT TARGET coverage)
+    add_custom_target(coverage
+      COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/coverage
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
+      COMMAND ${CMAKE_SOURCE_DIR}/tools/coverage.sh ${CMAKE_BINARY_DIR}
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      COMMENT "Generating coverage report"
+    )
+  endif()
 endif()
